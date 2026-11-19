@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { DEPTH, roundOf, type GameState } from '../game';
+import { DEPTH, roundOf, type GameState, type PlayerId } from '../game';
 import { Mark } from './Mark';
 import { LEVEL_NAMES, position, styleOf } from './players';
 
@@ -47,11 +47,20 @@ function RoundOrder({ state }: { state: GameState }) {
   );
 }
 
-export function TurnBar({ state }: { state: GameState }) {
+interface Props {
+  state: GameState;
+  /** Online only: the viewer's seat, or null for a spectator. Undefined for a local game. */
+  you?: PlayerId | null;
+}
+
+export function TurnBar({ state, you }: Props) {
   const { mode, players } = state.config;
   const current = styleOf(state.turn);
   const boardLevels = LEVEL_NAMES[mode].slice(0, DEPTH[mode] - 1);
   const { zone } = state;
+  const name = players[state.turn]?.name;
+  const label =
+    you === undefined ? `${name}'s turn` : you === state.turn ? 'Your turn' : `Waiting for ${name}`;
 
   return (
     <div className="turn-wrap">
@@ -59,7 +68,7 @@ export function TurnBar({ state }: { state: GameState }) {
         <span className="turn-badge" style={{ background: current.tint }}>
           <Mark d={current.d} color={current.color} />
         </span>
-        <span className="turn-name">{players[state.turn]?.name}&apos;s turn</span>
+        <span className="turn-name">{label}</span>
         <span className="turn-divider" />
         <span className="turn-target">
           {zone.length === 0 && (

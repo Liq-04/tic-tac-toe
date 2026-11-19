@@ -5,7 +5,8 @@ import { styleOf } from './players';
 
 interface Props {
   state: GameState;
-  onAgain: () => void;
+  /** null when this viewer cannot restart (an online guest). */
+  onAgain: (() => void) | null;
   onSetup: () => void;
   onViewBoard: () => void;
 }
@@ -79,9 +80,13 @@ export function GameOver({ state, onAgain, onSetup, onViewBoard }: Props) {
         })}
       </ol>
       <div className="modal-actions">
-        <button type="button" className="btn primary" onClick={onAgain}>
-          Play again
-        </button>
+        {onAgain ? (
+          <button type="button" className="btn primary" onClick={onAgain}>
+            Play again
+          </button>
+        ) : (
+          <span className="hint">Waiting for host to play again</span>
+        )}
         <button type="button" className="btn" onClick={onSetup}>
           Change setup
         </button>

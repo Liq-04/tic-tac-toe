@@ -1,4 +1,4 @@
-import { scores, type GameState } from '../game';
+import { scores, type GameState, type PlayerId } from '../game';
 import { Mark } from './Mark';
 import { styleOf } from './players';
 
@@ -6,7 +6,13 @@ function topBoardsWon(state: GameState, player: number): number {
   return state.root.children.filter((c) => c.kind === 'board' && c.owner === player).length;
 }
 
-export function PlayerCards({ state }: { state: GameState }) {
+interface Props {
+  state: GameState;
+  /** Online only. Undefined for a local game. */
+  online?: { you: PlayerId | null; connected: readonly boolean[] };
+}
+
+export function PlayerCards({ state, online }: Props) {
   const { players } = state.config;
   const points = scores(state);
   const playing = state.status.kind === 'playing';
@@ -18,6 +24,16 @@ export function PlayerCards({ state }: { state: GameState }) {
         const s = styleOf(i as 0 | 1 | 2 | 3);
         const isTurn = playing && state.turn === i;
         const boards = topBoardsWon(state, i);
+        const note = twoPlayer
+          ? `${boards} ${boards === 1 ? 'board' : 'boards'} won`
+          : isTurn
+            ? 'To move'
+            : 'Points';
+        const tags = [
+          online?.you === i ? 'You' : null,
+          online?.connected[i] === false ? 'offline' : null,
+          note,
+        ];
         return (
           <div
             key={i}
@@ -31,11 +47,7 @@ export function PlayerCards({ state }: { state: GameState }) {
             <span className="player-info">
               <span className="player-name">{p.name}</span>
               <span className="player-note">
-                {twoPlayer
-                  ? `${boards} ${boards === 1 ? 'board' : 'boards'} won`
-                  : isTurn
-                    ? 'To move'
-                    : 'Points'}
+                {tags.filter(Boolean).join(' · ')}
               </span>
             </span>
             {twoPlayer ? (

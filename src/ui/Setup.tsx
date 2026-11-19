@@ -39,9 +39,10 @@ function winRule(mode: Mode, count: number): { title: string; text: string } {
 interface Props {
   initial: Config;
   onStart: (config: Config) => void;
+  onPlayOnline: (config: Config) => void;
 }
 
-export function Setup({ initial, onStart }: Props) {
+export function Setup({ initial, onStart, onPlayOnline }: Props) {
   const [mode, setMode] = useState<Mode>(initial.mode);
   const [count, setCount] = useState(initial.players.length);
   const [names, setNames] = useState<string[]>(() =>
@@ -49,13 +50,10 @@ export function Setup({ initial, onStart }: Props) {
   );
   const rule = winRule(mode, count);
 
-  const start = () =>
-    onStart({
-      mode,
-      players: names
-        .slice(0, count)
-        .map((name, i) => ({ name: name.trim() || `Player ${i + 1}` })),
-    });
+  const config = (): Config => ({
+    mode,
+    players: names.slice(0, count).map((name, i) => ({ name: name.trim() || `Player ${i + 1}` })),
+  });
 
   return (
     <div className="setup">
@@ -124,10 +122,16 @@ export function Setup({ initial, onStart }: Props) {
           <span>{rule.text}</span>
         </div>
         <div className="start-block">
-          <button type="button" className="btn primary big" onClick={start}>
+          <button type="button" className="btn primary big" onClick={() => onStart(config())}>
             Start game
           </button>
           <span className="hint">Pass-and-play on one device</span>
+          <button type="button" className="btn big" onClick={() => onPlayOnline(config())}>
+            Play online
+          </button>
+          <span className="hint">
+            Host a room and invite friends with a link. Player 1&apos;s name is yours.
+          </span>
         </div>
       </div>
     </div>
