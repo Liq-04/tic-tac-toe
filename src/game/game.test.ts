@@ -5,6 +5,7 @@ import {
   newGame,
   nodeAt,
   play,
+  roundOf,
   scores,
   type GameState,
   type Mode,
@@ -274,3 +275,83 @@ describe('isInZone', () => {
 function fillUltimateBoardsRow(state: GameState, player: PlayerId = 0): GameState {
   return [0, 1, 2].reduce((s, board) => winUltimateBoard(s, board, player), state);
 }
+
+const SCHEDULE_4: PlayerId[][] = [
+  [0, 1, 2, 3],
+  [0, 2, 3, 1],
+  [0, 3, 1, 2],
+  [0, 1, 3, 2],
+  [0, 2, 1, 3],
+  [0, 3, 2, 1],
+];
+
+function firstLegal(state: GameState): Path {
+  for (let a = 0; a < 9; a++) {
+    for (let b = 0; b < 9; b++) {
+      if (isLegal(state, [a, b])) return [a, b];
+    }
+  }
+  throw new Error('no legal move');
+}
+
+function turnSequence(playerCount: 2 | 3 | 4, moves: number): PlayerId[] {
+  let s = start('ultimate', playerCount);
+  const turns: PlayerId[] = [];
+  for (let i = 0; i < moves; i++) {
+    turns.push(s.turn);
+    s = play(s, firstLegal(s));
+  }
+  return turns;
+}
+
+describe('turn order by round', () => {
+  it('2 players alternate', () => {
+    expect(turnSequence(2, 6)).toEqual([0, 1, 0, 1, 0, 1]);
+  });
+
+  it('3 players: 0,1,2 then 0,2,1, then back to 0,1,2', () => {
+    expect(turnSequence(3, 7)).toEqual([0, 1, 2, 0, 2, 1, 0]);
+  });
+
+  it('4 players follow the six-round schedule', () => {
+    expect(turnSequence(4, 24)).toEqual(SCHEDULE_4.flat());
+  });
+
+  it('4 players: every ordered pair follows each other exactly twice per cycle', () => {
+    const seq = turnSequence(4, 24);
+    const counts = new Map<string, number>();
+    seq.forEach((x, i) => {
+      const key = `${x}>${seq[(i + 1) % seq.length]}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+    expect(counts.size).toBe(12);
+    expect([...counts.values()].every((c) => c === 2)).toBe(true);
+  });
+
+  it('4 players: each round has every player once', () => {
+    const seq = turnSequence(4, 24);
+    for (let r = 0; r < 6; r++) {
+      expect([...seq.slice(r * 4, r * 4 + 4)].sort()).toEqual([0, 1, 2, 3]);
+    }
+  });
+
+  it('winning a small board does not change who moves next', () => {
+    const s = winUltimateBoard(start('ultimate', 3), 0, 0);
+    expect(ownerOf(s, [0])).toBe(0);
+    expect(s.turn).toBe(0);
+    const s2 = play(s, firstLegal(s));
+    expect(s2.turn).toBe(2);
+  });
+
+  it('roundOf reports the round and order of the current turn', () => {
+    const s0 = start('ultimate', 3);
+    expect(roundOf(s0)).toEqual({ round: 1, order: [0, 1, 2] });
+    const s3 = playAll(s0, [
+      [0, 0],
+      [0, 1],
+      [1, 1],
+    ]);
+    expect(roundOf(s3)).toEqual({ round: 2, order: [0, 2, 1] });
+    expect(roundOf(playAll(s3, [[1, 0]]))).toEqual({ round: 2, order: [0, 2, 1] });
+  });
+});
