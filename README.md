@@ -11,7 +11,7 @@ Tic-tac-toe inside tic-tac-toe, for 2 to 4 players on one device (pass-and-play)
 - If the target board is already won or full, the next player may play in any open small board inside the nearest open board above it. In Ultimate that is anywhere. In Omega it is the same large board, then anywhere.
 - Three in a row inside a board wins it, and a won board never changes hands.
 - **2 players**: three in a row on the top board wins. A full top board with no line is a draw.
-- **3 to 4 players**: most boards wins. Each small board is 1 point. Three in a row on a larger board claims it outright: every small board inside becomes yours (9 points for an Omega large board) and other players lose theirs there. Three in a row on the top board ends the game. Ties share the win.
+- **3 to 4 players**: most boards wins. Each small board is 1 point. Three in a row on a larger board claims it outright: every small board inside becomes yours (9 points for an Omega large board) and other players lose theirs there. Three in a row on the top board ends the game. Ties share the win. Turn order changes every round on a fixed cycle: everyone moves once per round, and the first player always starts a round.
 
 ## Develop
 
