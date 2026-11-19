@@ -37,6 +37,10 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
           yours (9 points for an Omega large board) and other players lose theirs there. Three in a
           row on the top board ends the game at once. Ties share the win.
         </p>
+        <p>
+          Turn order changes every round on a fixed cycle. Everyone moves once per round, and the
+          first player always starts a round.
+        </p>
       </div>
       <button type="button" className="btn primary" onClick={onClose}>
         Got it

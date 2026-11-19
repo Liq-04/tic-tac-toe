@@ -377,6 +377,48 @@ p {
   flex-wrap: wrap;
 }
 
+.turn-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.round-order {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.round-label {
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.round-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.round-step.current {
+  border-color: transparent;
+}
+
+.round-step.done {
+  opacity: 0.4;
+}
+
 .turn-bar {
   display: flex;
   align-items: center;
@@ -814,6 +856,10 @@ p {
     justify-content: flex-start;
     gap: 14px;
     padding-top: 14px;
+  }
+
+  .turn-wrap {
+    width: 100%;
   }
 
   .turn-bar {
