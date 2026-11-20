@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { DEPTH, roundOf, type GameState, type PlayerId } from '../game';
+import { DEPTH, isBotTurn, roundOf, type GameState, type PlayerId } from '../game';
 import { Mark } from './Mark';
 import { LEVEL_NAMES, position, styleOf } from './players';
 
@@ -59,8 +59,9 @@ export function TurnBar({ state, you }: Props) {
   const boardLevels = LEVEL_NAMES[mode].slice(0, DEPTH[mode] - 1);
   const { zone } = state;
   const name = players[state.turn]?.name;
+  const localLabel = isBotTurn(state) ? `${name} is thinking…` : `${name}'s turn`;
   const label =
-    you === undefined ? `${name}'s turn` : you === state.turn ? 'Your turn' : `Waiting for ${name}`;
+    you === undefined ? localLabel : you === state.turn ? 'Your turn' : `Waiting for ${name}`;
 
   return (
     <div className="turn-wrap">

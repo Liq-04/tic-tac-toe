@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Config, Mode } from '../game';
+import type { Config, Mode, PlayerInfo } from '../game';
 import { Mark } from './Mark';
 import { PLAYER_STYLES, MODE_LABEL } from './players';
 
@@ -45,14 +45,25 @@ interface Props {
 export function Setup({ initial, onStart, onPlayOnline }: Props) {
   const [mode, setMode] = useState<Mode>(initial.mode);
   const [count, setCount] = useState(initial.players.length);
-  const [names, setNames] = useState<string[]>(() =>
-    PLAYER_STYLES.map((_, i) => initial.players[i]?.name ?? ''),
+  const [seats, setSeats] = useState(() =>
+    PLAYER_STYLES.map((_, i) => ({
+      name: initial.players[i]?.name ?? '',
+      bot: i > 0 && initial.players[i]?.bot === true,
+    })),
   );
   const rule = winRule(mode, count);
 
+  const hasBot = seats.slice(0, count).some((s) => s.bot);
+
+  const setSeat = (i: number, patch: Partial<(typeof seats)[number]>) =>
+    setSeats((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+
   const config = (): Config => ({
     mode,
-    players: names.slice(0, count).map((name, i) => ({ name: name.trim() || `Player ${i + 1}` })),
+    players: seats.slice(0, count).map((s, i): PlayerInfo => {
+      const name = s.name.trim() || `${s.bot ? 'Bot' : 'Player'} ${i + 1}`;
+      return s.bot ? { name, bot: true } : { name };
+    }),
   });
 
   return (
@@ -101,20 +112,38 @@ export function Setup({ initial, onStart, onPlayOnline }: Props) {
             ))}
           </div>
           <div className="roster">
-            {PLAYER_STYLES.slice(0, count).map((p, i) => (
-              <label key={i} className="name-field">
-                <Mark d={p.d} color={p.color} />
-                <input
-                  value={names[i] ?? ''}
-                  placeholder={`Player ${i + 1}`}
-                  aria-label={`Name for player ${i + 1}`}
-                  maxLength={20}
-                  onChange={(e) =>
-                    setNames((prev) => prev.map((n, j) => (j === i ? e.target.value : n)))
-                  }
-                />
-              </label>
-            ))}
+            {PLAYER_STYLES.slice(0, count).map((p, i) => {
+              const seat = seats[i];
+              const bot = seat?.bot === true;
+              return (
+                <div key={i} className="roster-seat">
+                  <label className="name-field">
+                    <Mark d={p.d} color={p.color} />
+                    <input
+                      value={seat?.name ?? ''}
+                      placeholder={`${bot ? 'Bot' : 'Player'} ${i + 1}`}
+                      aria-label={`Name for player ${i + 1}`}
+                      maxLength={20}
+                      onChange={(e) => setSeat(i, { name: e.target.value })}
+                    />
+                  </label>
+                  <div className="segmented small" role="group" aria-label={`Player ${i + 1} type`}>
+                    <button type="button" aria-pressed={!bot} onClick={() => setSeat(i, { bot: false })}>
+                      Human
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={bot}
+                      disabled={i === 0}
+                      title={i === 0 ? 'Player 1 is always human' : undefined}
+                      onClick={() => setSeat(i, { bot: true })}
+                    >
+                      Bot
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
         <div className="rule-blurb">
@@ -126,11 +155,18 @@ export function Setup({ initial, onStart, onPlayOnline }: Props) {
             Start game
           </button>
           <span className="hint">Pass-and-play on one device</span>
-          <button type="button" className="btn big" onClick={() => onPlayOnline(config())}>
+          <button
+            type="button"
+            className="btn big"
+            disabled={hasBot}
+            onClick={() => onPlayOnline(config())}
+          >
             Play online
           </button>
           <span className="hint">
-            Host a room and invite friends with a link. Player 1&apos;s name is yours.
+            {hasBot
+              ? 'Bots play offline only. Set every seat to Human to host a room.'
+              : "Host a room and invite friends with a link. Player 1's name is yours."}
           </span>
         </div>
       </div>

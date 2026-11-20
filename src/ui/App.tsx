@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { newGame, play, type Config, type GameState, type Path } from '../game';
+import { isBotTurn, newGame, play, type Config, type GameState, type Path } from '../game';
+import { botTurn } from '../bot';
 import { parseCode } from '../online/protocol';
 import { createHostedRoom } from '../online/storage';
 import { GameScreen } from './GameScreen';
@@ -30,6 +31,11 @@ function LocalApp() {
 
   useEffect(() => saveGame(game), [game]);
 
+  useEffect(() => {
+    if (!game) return;
+    return botTurn(game, (path) => setGame((g) => (g === game ? play(g, path) : g)));
+  }, [game]);
+
   const start = (config: Config) => {
     setLastConfig(config);
     setGameId((n) => n + 1);
@@ -37,6 +43,7 @@ function LocalApp() {
   };
 
   const hostOnline = (config: Config) => {
+    if (config.players.some((p) => p.bot)) return;
     location.hash = `#/g/${createHostedRoom(config)}`;
   };
 
@@ -53,7 +60,7 @@ function LocalApp() {
     <GameScreen
       key={gameId}
       state={game}
-      onPlay={(path: Path) => setGame((g) => (g ? play(g, path) : g))}
+      onPlay={(path: Path) => setGame((g) => (g && !isBotTurn(g) ? play(g, path) : g))}
       onNewGame={leaveGame}
       onPlayAgain={() => start(game.config)}
     />

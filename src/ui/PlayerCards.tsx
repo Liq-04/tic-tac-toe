@@ -23,15 +23,18 @@ export function PlayerCards({ state, online }: Props) {
       {players.map((p, i) => {
         const s = styleOf(i as 0 | 1 | 2 | 3);
         const isTurn = playing && state.turn === i;
+        const isBot = online === undefined && p.bot === true;
+        const toMove = isTurn && isBot ? 'Thinking…' : 'To move';
         const boards = topBoardsWon(state, i);
         const note = twoPlayer
           ? `${boards} ${boards === 1 ? 'board' : 'boards'} won`
           : isTurn
-            ? 'To move'
+            ? toMove
             : 'Points';
         const tags = [
           online?.you === i ? 'You' : null,
           online?.connected[i] === false ? 'offline' : null,
+          isBot ? 'Bot' : null,
           note,
         ];
         return (
@@ -53,7 +56,7 @@ export function PlayerCards({ state, online }: Props) {
             {twoPlayer ? (
               isTurn && (
                 <span className="turn-pill" style={{ color: s.ink, background: s.tint }}>
-                  To move
+                  {toMove}
                 </span>
               )
             ) : (
