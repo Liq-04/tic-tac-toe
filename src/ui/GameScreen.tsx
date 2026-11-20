@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { GameState, Path } from '../game';
+import { useEffect, useState } from 'react';
+import type { GameState, Path, PlayerId } from '../game';
 import { BoardView } from './BoardView';
 import { GameOver } from './GameOver';
 import { Mark } from './Mark';
@@ -8,22 +8,39 @@ import { MODE_LABEL } from './players';
 import { RulesModal } from './RulesModal';
 import { TurnBar } from './TurnBar';
 
+/** Present only for online games. A local game omits it and behaves as pass-and-play. */
+export interface OnlineGame {
+  /** The viewer's seat, or null for a spectator. */
+  you: PlayerId | null;
+  isHost: boolean;
+  /** False while a guest is cut off from the host; moves sent then would be lost. */
+  live: boolean;
+  connected: readonly boolean[];
+  /** Connection trouble to show above the board. */
+  banner: string | null;
+}
+
 interface Props {
   state: GameState;
+  online?: OnlineGame;
   onPlay: (path: Path) => void;
   onNewGame: () => void;
   onPlayAgain: () => void;
 }
 
-export function GameScreen({ state, onPlay, onNewGame, onPlayAgain }: Props) {
+export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Props) {
   const { mode, players } = state.config;
   const [showRules, setShowRules] = useState(false);
   const [resultHidden, setResultHidden] = useState(false);
   const [zoomPref, setZoomPref] = useState(false);
 
   const over = state.status.kind !== 'playing';
+  useEffect(() => {
+    if (!over) setResultHidden(false);
+  }, [over]);
   const zoomedLarge = zoomPref && mode === 'omega' && !over ? state.zone[0] : undefined;
   const zoomed = zoomedLarge !== undefined;
+  const canPlay = online === undefined || (online.live && online.you === state.turn);
   const ruleLine = players.length === 2 ? 'three in a row wins' : 'most boards wins';
 
   return (
@@ -46,19 +63,24 @@ export function GameScreen({ state, onPlay, onNewGame, onPlayAgain }: Props) {
             Rules
           </button>
           <button type="button" className="btn primary" onClick={onNewGame}>
-            New game
+            {online ? 'Leave' : 'New game'}
           </button>
         </div>
       </header>
 
       <main className="game-main">
+        {online?.banner && (
+          <div className="banner" role="status">
+            {online.banner}
+          </div>
+        )}
         <div className="bar-row">
           {over ? (
             <button type="button" className="btn" onClick={() => setResultHidden(false)}>
               Game over · Show results
             </button>
           ) : (
-            <TurnBar state={state} />
+            <TurnBar state={state} you={online?.you} />
           )}
           {mode === 'omega' && (
             <div className="segmented small" role="group" aria-label="Board view">
@@ -82,18 +104,19 @@ export function GameScreen({ state, onPlay, onNewGame, onPlayAgain }: Props) {
             key={zoomed ? 'zoom' : 'overview'}
             state={state}
             prefix={zoomed ? [zoomedLarge] : []}
+            canPlay={canPlay}
             onPlay={onPlay}
           />
         </div>
 
-        <PlayerCards state={state} />
+        <PlayerCards state={state} online={online} />
       </main>
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {over && !resultHidden && (
         <GameOver
           state={state}
-          onAgain={onPlayAgain}
+          onAgain={online && !online.isHost ? null : onPlayAgain}
           onSetup={onNewGame}
           onViewBoard={() => setResultHidden(true)}
         />

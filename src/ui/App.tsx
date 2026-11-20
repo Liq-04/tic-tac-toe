@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { newGame, play, type Config, type GameState, type Path } from '../game';
+import { parseCode } from '../online/protocol';
+import { createHostedRoom } from '../online/storage';
 import { GameScreen } from './GameScreen';
+import { OnlineApp } from './OnlineApp';
 import { Setup } from './Setup';
 import { loadGame, saveGame } from './storage';
 
@@ -9,7 +12,18 @@ const DEFAULT_CONFIG: Config = {
   players: [{ name: '' }, { name: '' }],
 };
 
+function subscribeHash(onChange: () => void) {
+  window.addEventListener('hashchange', onChange);
+  return () => window.removeEventListener('hashchange', onChange);
+}
+
 export function App() {
+  const hash = useSyncExternalStore(subscribeHash, () => location.hash);
+  const code = parseCode(/^#\/g\/([^/]+)$/.exec(hash)?.[1] ?? '');
+  return code ? <OnlineApp code={code} /> : <LocalApp />;
+}
+
+function LocalApp() {
   const [game, setGame] = useState<GameState | null>(loadGame);
   const [gameId, setGameId] = useState(0);
   const [lastConfig, setLastConfig] = useState<Config>(game?.config ?? DEFAULT_CONFIG);
@@ -22,7 +36,11 @@ export function App() {
     setGame(newGame(config));
   };
 
-  if (!game) return <Setup initial={lastConfig} onStart={start} />;
+  const hostOnline = (config: Config) => {
+    location.hash = `#/g/${createHostedRoom(config)}`;
+  };
+
+  if (!game) return <Setup initial={lastConfig} onStart={start} onPlayOnline={hostOnline} />;
 
   const leaveGame = () => {
     const inProgress = game.status.kind === 'playing' && game.lastMove !== null;

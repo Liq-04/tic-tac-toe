@@ -6,6 +6,8 @@ import { LEVEL_NAMES, position, styleOf } from './players';
 interface Props {
   state: GameState;
   prefix: Path;
+  /** False while it is not this viewer's turn (online play), so no cell is clickable. */
+  canPlay: boolean;
   onPlay: (path: Path) => void;
 }
 
@@ -22,7 +24,7 @@ function cellLabel(state: GameState, path: Path): string {
   return `${place}, ${who}`;
 }
 
-export function BoardView({ state, prefix, onPlay }: Props) {
+export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
   const { mode, players } = state.config;
   const depth = DEPTH[mode];
   const level = prefix.length;
@@ -52,9 +54,9 @@ export function BoardView({ state, prefix, onPlay }: Props) {
       {node.children.map((child, i) => {
         const path = [...prefix, i];
         if (child.kind === 'board') {
-          return <BoardView key={i} state={state} prefix={path} onPlay={onPlay} />;
+          return <BoardView key={i} state={state} prefix={path} canPlay={canPlay} onPlay={onPlay} />;
         }
-        const legal = isLegal(state, path);
+        const legal = canPlay && isLegal(state, path);
         const mark = child.mark === null ? null : styleOf(child.mark);
         return (
           <button
