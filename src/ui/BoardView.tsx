@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { DEPTH, isInZone, isLegal, nodeAt, type BoardNode, type GameState, type Path } from '../game';
 import { Mark } from './Mark';
-import { LEVEL_NAMES, position, styleOf } from './players';
+import { LEVEL_NAMES, SHAPES, position, styleOf } from './players';
 
 interface Props {
   state: GameState;
@@ -45,6 +45,8 @@ export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
   const owner = level > 0 ? node.owner : null;
   const ownerStyle = owner === null ? null : styleOf(owner);
   const claimed = owner !== null && players.length > 2 && mode === 'omega' && level === 1;
+  const dead = level > 0 && node.closed && node.owner === null;
+  const deadLabel = dead && level === 1;
 
   return (
     <div
@@ -87,6 +89,12 @@ export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
               Claimed · 9 pts
             </span>
           )}
+        </div>
+      )}
+      {dead && (
+        <div className="owned dead" role="img" aria-label="Tied board, no moves left">
+          <Mark d={SHAPES.x} color="#374151" size="68%" strokeWidth={2.4} />
+          {deadLabel && <span className="claim-pill dead-pill">Tied</span>}
         </div>
       )}
     </div>

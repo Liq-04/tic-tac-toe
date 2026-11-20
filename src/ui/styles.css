@@ -616,13 +616,23 @@ p {
   aspect-ratio: 1;
 }
 
+.owned.dead {
+  background: #e5e7ebeb;
+}
+
 .claim-pill {
+  position: absolute;
+  bottom: 8%;
   font-size: 12px;
   font-weight: 700;
   color: #fff;
   padding: 5px 10px;
   border-radius: 999px;
   white-space: nowrap;
+}
+
+.dead-pill {
+  background: #374151;
 }
 
 
