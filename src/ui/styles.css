@@ -482,12 +482,28 @@ p {
   background: var(--line);
 }
 
+.stable {
+  display: grid;
+  min-width: 0;
+}
+
+.stable-item {
+  grid-area: 1 / 1;
+}
+
+.stable-item[aria-hidden='true'] {
+  visibility: hidden;
+}
+
 .turn-target {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.turn-target .stable-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  color: var(--muted);
   flex-wrap: wrap;
 }
 
@@ -618,6 +634,84 @@ p {
 
 .cell svg {
   pointer-events: none;
+}
+
+.ghost {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  pointer-events: none;
+  animation: ghost-in 140ms ease-out;
+}
+
+.board.next-target {
+  z-index: 2;
+}
+
+.next-zone {
+  position: absolute;
+  inset: -3px;
+  border: 3px dashed;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: next-in 180ms ease-out, next-pulse 1.4s ease-in-out 180ms infinite;
+}
+
+.board.root > .next-zone {
+  inset: -7px;
+  border-radius: 16px;
+}
+
+.next-badge {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 26px;
+  height: 26px;
+  border: 2px solid;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.2);
+  animation: badge-in 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes ghost-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes next-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes next-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes badge-in {
+  from {
+    transform: scale(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost,
+  .next-zone,
+  .next-badge {
+    animation: none;
+  }
 }
 
 .owned {
@@ -952,6 +1046,13 @@ p {
     padding: 3px;
     gap: 2px;
     border-radius: 8px;
+  }
+
+  .next-badge {
+    top: -9px;
+    right: -9px;
+    width: 20px;
+    height: 20px;
   }
 
   .claim-pill {

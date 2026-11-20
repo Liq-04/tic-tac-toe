@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { isBotTurn, type GameState, type Path, type PlayerId } from '../game';
-import { BoardView } from './BoardView';
+import { isBotTurn, isLegal, play, type GameState, type Path, type PlayerId } from '../game';
+import { BoardView, type MovePreview } from './BoardView';
 import { GameOver } from './GameOver';
 import { Mark } from './Mark';
 import { PlayerCards } from './PlayerCards';
@@ -28,11 +28,19 @@ interface Props {
   onPlayAgain: () => void;
 }
 
+function previewOf(state: GameState, path: Path | null): MovePreview | null {
+  if (path === null || !isLegal(state, path)) return null;
+  const after = play(state, path);
+  const next = after.status.kind === 'playing' ? { turn: after.turn, zone: after.zone } : null;
+  return { path, next };
+}
+
 export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Props) {
   const { mode, players } = state.config;
   const [showRules, setShowRules] = useState(false);
   const [resultHidden, setResultHidden] = useState(false);
   const [zoomPref, setZoomPref] = useState(false);
+  const [hover, setHover] = useState<Path | null>(null);
 
   const over = state.status.kind !== 'playing';
   useEffect(() => {
@@ -42,6 +50,7 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
   const zoomed = zoomedLarge !== undefined;
   const canPlay =
     online === undefined ? !isBotTurn(state) : online.live && online.you === state.turn;
+  const preview = previewOf(state, canPlay ? hover : null);
   const ruleLine = players.length === 2 ? 'three in a row wins' : 'most boards wins';
 
   return (
@@ -106,6 +115,8 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
             state={state}
             prefix={zoomed ? [zoomedLarge] : []}
             canPlay={canPlay}
+            preview={preview}
+            onHover={setHover}
             onPlay={onPlay}
           />
         </div>
