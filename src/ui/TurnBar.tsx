@@ -105,9 +105,9 @@ export function TurnBar({ state, you }: Props) {
   const current = styleOf(state.turn);
   const levels = LEVEL_NAMES[mode].slice(0, DEPTH[mode] - 1);
   const labelFor = (id: number) => {
-    const name = players[id]?.name;
-    if (you === undefined) return `${name}'s turn`;
-    return you === id ? 'Your turn' : `Waiting for ${name}`;
+    const player = players[id];
+    if (you === undefined) return player?.bot ? `${player.name} is thinking…` : `${player?.name}'s turn`;
+    return you === id ? 'Your turn' : `Waiting for ${player?.name}`;
   };
   const widestZones = levels.map((_, i) => Array<number>(i + 1).fill(WIDEST_DIGIT));
 

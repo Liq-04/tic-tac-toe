@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isLegal, play, type GameState, type Path, type PlayerId } from '../game';
+import { isBotTurn, isLegal, play, type GameState, type Path, type PlayerId } from '../game';
 import { BoardView, type MovePreview } from './BoardView';
 import { GameOver } from './GameOver';
 import { Mark } from './Mark';
@@ -48,7 +48,8 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
   }, [over]);
   const zoomedLarge = zoomPref && mode === 'omega' && !over ? state.zone[0] : undefined;
   const zoomed = zoomedLarge !== undefined;
-  const canPlay = online === undefined || (online.live && online.you === state.turn);
+  const canPlay =
+    online === undefined ? !isBotTurn(state) : online.live && online.you === state.turn;
   const preview = previewOf(state, canPlay ? hover : null);
   const ruleLine = players.length === 2 ? 'three in a row wins' : 'most boards wins';
 

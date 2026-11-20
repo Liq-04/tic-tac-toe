@@ -11,7 +11,7 @@ import type {
 
 export const DEPTH: Record<Mode, number> = { ultimate: 2, omega: 3 };
 
-const LINES = [
+export const LINES = [
   [0, 1, 2],
   [3, 4, 5],
   [6, 7, 8],
@@ -45,7 +45,7 @@ function orderAt(config: Config, move: number): { round: number; order: readonly
   return { round: round + 1, order: orders[round % orders.length]! };
 }
 
-function playerAt(config: Config, move: number): PlayerId {
+export function playerAt(config: Config, move: number): PlayerId {
   return orderAt(config, move).order[move % config.players.length] ?? 0;
 }
 

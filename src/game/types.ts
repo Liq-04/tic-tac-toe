@@ -16,6 +16,8 @@ export type BoardNode = Extract<Node, { kind: 'board' }>;
 
 export interface PlayerInfo {
   name: string;
+  /** The offline bot plays this seat. */
+  bot?: true;
 }
 
 export interface Config {

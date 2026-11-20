@@ -231,6 +231,27 @@ p {
   gap: 10px;
 }
 
+.roster-seat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.roster-seat .segmented {
+  align-self: stretch;
+  width: auto;
+}
+
+.roster-seat .segmented button {
+  flex: 1;
+}
+
+.segmented.small button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .name-field {
   display: flex;
   align-items: center;
