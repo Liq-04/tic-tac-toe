@@ -13,6 +13,10 @@ Tic-tac-toe inside tic-tac-toe, for 2 to 4 players, on one device (pass-and-play
 - **2 players**: three in a row on the top board wins. A full top board with no line is a draw.
 - **3 to 4 players**: most boards wins. Each small board is 1 point. Three in a row on a larger board claims it outright: every small board inside becomes yours (9 points for an Omega large board) and other players lose theirs there. Three in a row on the top board ends the game. Ties share the win. Turn order changes every round on a fixed cycle: everyone moves once per round, and the first player always starts a round.
 
+## Bots
+
+On the setup screen, set any seat after player 1 to **Bot** to play against the computer, in either mode and for 2 to 4 players. Player 1 is always human. A bot is a Monte Carlo tree search that thinks for about a second per move in a Web Worker, so the page stays responsive. Bots work offline only: **Play online** is disabled while a seat is a bot.
+
 ## Online play
 
 Press **Play online** on the setup screen to host a room. You get a five-character code and an invite link (`#/g/<code>`). Friends open the link, take a seat in the lobby, and the host starts the game.
@@ -34,7 +38,7 @@ VITE_PEER_SERVER=localhost:9000 npm run build && npm run preview
 ```sh
 npm install
 npm run dev      # local dev server
-npm test         # vitest, covers the rules in src/game
+npm test         # vitest, covers the rules in src/game and the bot in src/bot
 npm run build    # typecheck + production build into dist/
 npm run preview  # serve the built dist/
 ```
