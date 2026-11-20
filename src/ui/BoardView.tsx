@@ -1,13 +1,30 @@
 import type { CSSProperties } from 'react';
-import { DEPTH, isInZone, isLegal, nodeAt, type BoardNode, type GameState, type Path } from '../game';
+import {
+  DEPTH,
+  isInZone,
+  isLegal,
+  nodeAt,
+  type BoardNode,
+  type GameState,
+  type Path,
+  type PlayerId,
+} from '../game';
 import { Mark } from './Mark';
 import { LEVEL_NAMES, SHAPES, position, styleOf } from './players';
+
+/** What the hovered move would do: the cell it fills, and who moves next and where (null if it ends the game). */
+export interface MovePreview {
+  path: Path;
+  next: { turn: PlayerId; zone: Path } | null;
+}
 
 interface Props {
   state: GameState;
   prefix: Path;
   /** False while it is not this viewer's turn (online play), so no cell is clickable. */
   canPlay: boolean;
+  preview: MovePreview | null;
+  onHover: (path: Path | null) => void;
   onPlay: (path: Path) => void;
 }
 
@@ -24,7 +41,7 @@ function cellLabel(state: GameState, path: Path): string {
   return `${place}, ${who}`;
 }
 
-export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
+export function BoardView({ state, prefix, canPlay, preview, onHover, onPlay }: Props) {
   const { mode, players } = state.config;
   const depth = DEPTH[mode];
   const level = prefix.length;
@@ -47,19 +64,32 @@ export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
   const claimed = owner !== null && players.length > 2 && mode === 'omega' && level === 1;
   const dead = level > 0 && node.closed && node.owner === null;
   const deadLabel = dead && level === 1;
+  const next = preview?.next && samePath(preview.next.zone, prefix) ? preview.next : null;
+  const nextStyle = next && styleOf(next.turn);
 
   return (
     <div
-      className={`board lvl-${level}${isLeaf ? ' leaf' : ''}${level === 0 ? ' root' : ''}`}
+      className={`board lvl-${level}${isLeaf ? ' leaf' : ''}${level === 0 ? ' root' : ''}${next ? ' next-target' : ''}`}
       style={style}
     >
       {node.children.map((child, i) => {
         const path = [...prefix, i];
         if (child.kind === 'board') {
-          return <BoardView key={i} state={state} prefix={path} canPlay={canPlay} onPlay={onPlay} />;
+          return (
+            <BoardView
+              key={i}
+              state={state}
+              prefix={path}
+              canPlay={canPlay}
+              preview={preview}
+              onHover={onHover}
+              onPlay={onPlay}
+            />
+          );
         }
         const legal = canPlay && isLegal(state, path);
         const mark = child.mark === null ? null : styleOf(child.mark);
+        const ghost = samePath(preview?.path ?? null, path);
         return (
           <button
             key={i}
@@ -68,8 +98,17 @@ export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
             aria-label={cellLabel(state, path)}
             disabled={!legal}
             onClick={() => onPlay(path)}
+            onPointerEnter={() => onHover(path)}
+            onPointerLeave={() => onHover(null)}
+            onFocus={() => onHover(path)}
+            onBlur={() => onHover(null)}
           >
             {mark && <Mark d={mark.d} color={mark.color} size="74%" strokeWidth={3.2} />}
+            {ghost && (
+              <span className="ghost">
+                <Mark d={current.d} color={current.color} size="74%" strokeWidth={3.2} />
+              </span>
+            )}
           </button>
         );
       })}
@@ -89,6 +128,13 @@ export function BoardView({ state, prefix, canPlay, onPlay }: Props) {
               Claimed · 9 pts
             </span>
           )}
+        </div>
+      )}
+      {nextStyle && (
+        <div className="next-zone" style={{ borderColor: nextStyle.color, background: nextStyle.color + '1F' }}>
+          <span className="next-badge" style={{ background: nextStyle.tint, borderColor: nextStyle.color }}>
+            <Mark d={nextStyle.d} color={nextStyle.color} size="60%" strokeWidth={3} />
+          </span>
         </div>
       )}
       {dead && (
