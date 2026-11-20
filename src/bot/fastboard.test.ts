@@ -1,26 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { DEPTH, isLegal, newGame, nodeAt, play, scores, type GameState, type Mode, type Path, type PlayerId } from '../game';
+import { DEPTH, isLegal, nodeAt, play, scores, type GameState, type Mode, type Path } from '../game';
 import { FastBoard, type Move } from './fastboard';
 import { Rng } from './rng';
-
-type Count = 2 | 3 | 4;
-
-function start(mode: Mode, count: Count): GameState {
-  return newGame({ mode, players: Array.from({ length: count }, (_, i) => ({ name: `P${i + 1}` })) });
-}
-
-function pathOf(move: Move, depth: number): Path {
-  const path: number[] = [];
-  for (let i = 0; i < depth; i++) {
-    path.unshift(move % 9);
-    move = Math.floor(move / 9);
-  }
-  return path;
-}
-
-function moveOf(path: Path): Move {
-  return path.reduce((m, d) => m * 9 + d, 0);
-}
+import { moveOf, oneCellFromAllTied, pathOf, put, start, turnAfter, winBoard, winLargeBoard, type Count } from './testkit';
 
 function pop(mask: number): number {
   let n = 0;
@@ -28,7 +10,6 @@ function pop(mask: number): number {
   return n;
 }
 
-/** Every legal move according to the engine, found by asking isLegal about each cell number. */
 function engineLegal(state: GameState): Move[] {
   const depth = DEPTH[state.config.mode];
   const moves: Move[] = [];
@@ -55,7 +36,6 @@ function expectedReward(state: GameState): number[] {
 const legalBuf = new Uint16Array(729);
 const scoreBuf = new Float32Array(4);
 
-/** Compares the fast board with the engine on everything observable. `scan` adds the full legal-set comparison. */
 function expectAgree(real: GameState, fast: FastBoard, scan: boolean): void {
   const n = real.config.players.length;
   expect(fast.sameAs(FastBoard.fromGame(real)), 'masks, ply, zone and result match a snapshot of the engine').toBe(true);
@@ -105,7 +85,6 @@ interface Tally {
   rootWon: number;
 }
 
-/** Counts won and tied boards at the two levels above the cells, read straight off the claim and closed masks. */
 function tally(fast: FastBoard): Tally {
   const { s, g, players } = fast;
   const at = (b: number) => {
@@ -129,7 +108,6 @@ function tally(fast: FastBoard): Tally {
   return t;
 }
 
-/** Plays `path` on the engine and the fast board, checks they agree, and records which rule branches it hit. */
 function step(real: GameState, fast: FastBoard, path: Path, scan: boolean, cov = emptyCoverage()): GameState {
   const before = tally(fast);
   const next = play(real, path);
@@ -165,7 +143,6 @@ function step(real: GameState, fast: FastBoard, path: Path, scan: boolean, cov =
   return next;
 }
 
-/** Half uniform, half claim-seeking: the move that wins the most boards for the mover, if any wins one. */
 function pickMove(fast: FastBoard, scratch: FastBoard, rng: Rng): Move {
   if (rng.below(2) === 0) return fast.randomMove(rng);
   const wins = (fb: FastBoard) => {
@@ -202,46 +179,8 @@ function playSteeredGame(mode: Mode, count: Count, seed: number, cov: Coverage):
   expect(fast.over).toBe(true);
 }
 
-/** Places a mark for `player` regardless of turn order or zone, to set up a position. */
-function put(state: GameState, player: PlayerId, path: Path): GameState {
-  const next = play({ ...state, turn: player, zone: [] }, path);
-  expect(next.lastMove, `setup move ${path.join(',')} is legal`).toEqual(path);
-  return next;
-}
-
-/** Wins the board at `prefix` for `player` with a row of three cells. */
-function winBoard(state: GameState, prefix: Path, player: PlayerId): GameState {
-  return [0, 1, 2].reduce((s, cell) => put(s, player, [...prefix, cell]), state);
-}
-
-function winLargeBoard(state: GameState, large: number, player: PlayerId): GameState {
-  return [0, 1, 2].reduce((s, small) => winBoard(s, [large, small], player), state);
-}
-
-/** Who moves once `marks` cells are filled. The turn depends only on the mark count, not on who placed them. */
-function turnAfter(mode: Mode, count: Count, marks: number): PlayerId {
-  let s = start(mode, count);
-  const prefixLength = DEPTH[mode] - 2;
-  for (let i = 0; i < marks; i++) {
-    const head = prefixLength === 0 ? [i % 9] : [Math.floor(i / 9), i % 9];
-    s = put(s, 0, [...head, 0]);
-  }
-  return s.turn;
-}
-
-/** X X O / O O X / X O X: a full board with no line for either mark. */
-const TIE_PATTERN: PlayerId[] = [0, 0, 1, 1, 1, 0, 0, 1, 0];
-
-/** An Ultimate game where every board ties, so nobody scores. The last cell is played through `step`. */
 function allZeroDraw(count: Count, cov: Coverage): void {
-  let real = start('ultimate', count);
-  for (let board = 0; board < 9; board++) {
-    TIE_PATTERN.forEach((mark, cell) => {
-      if (board === 8 && cell === 8) return;
-      real = put(real, mark, [board, cell]);
-    });
-  }
-  real = { ...real, zone: [] };
+  let real = oneCellFromAllTied(count);
   const fast = FastBoard.fromGame(real);
   expectAgree(real, fast, true);
   real = step(real, fast, [8, 8], true, cov);
@@ -279,7 +218,6 @@ describe('hand-built positions', () => {
   });
 
   it('a last empty cell that completes a line gives an owner, not a tie', () => {
-    // X holds 0 1 5 6 and O holds 3 4 7 8, so X's cell 2 is the ninth mark and completes the top row.
     let real = start('ultimate', 2);
     for (const cell of [0, 1, 5, 6]) real = put(real, 0, [0, cell]);
     for (const cell of [3, 4, 7, 8]) real = put(real, 1, [0, cell]);
