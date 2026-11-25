@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
-import { DEPTH, roundOf, type GameState, type Path, type PlayerId } from '../game';
+import { DEPTH, type GameState, type Path, type PlayerId } from '../game';
 import { Mark } from './Mark';
 import { LEVEL_NAMES, position, styleOf } from './players';
 
@@ -13,40 +13,6 @@ function MiniMap({ active, color }: { active: number; color: string }) {
         <span key={i} style={{ background: i === active ? color : '#D1D5DB' }} />
       ))}
     </span>
-  );
-}
-
-function RoundOrder({ state }: { state: GameState }) {
-  const { round, order } = roundOf(state);
-  const { players } = state.config;
-  const currentIndex = order.indexOf(state.turn);
-  const label = `Round ${round} order: ${order.map((id) => players[id]?.name).join(', ')}`;
-
-  return (
-    <div className="round-order" role="group" aria-label={label}>
-      <span className="round-label" aria-hidden="true">
-        Round {round}
-      </span>
-      {order.map((id, i) => {
-        const style = styleOf(id);
-        const current = i === currentIndex;
-        return (
-          <Fragment key={id}>
-            {i > 0 && (
-              <span className="chev" aria-hidden="true">
-                →
-              </span>
-            )}
-            <span
-              className={`round-step${current ? ' current' : ''}${i < currentIndex ? ' done' : ''}`}
-              style={current ? { background: style.tint } : undefined}
-            >
-              <Mark d={style.d} color={style.color} size={16} />
-            </span>
-          </Fragment>
-        );
-      })}
-    </div>
   );
 }
 
@@ -112,26 +78,23 @@ export function TurnBar({ state, you }: Props) {
   const widestZones = levels.map((_, i) => Array<number>(i + 1).fill(WIDEST_DIGIT));
 
   return (
-    <div className="turn-wrap">
-      <div className="turn-bar">
-        <span className="turn-badge" style={{ background: current.tint }}>
-          <Mark d={current.d} color={current.color} />
-        </span>
-        <Stable
-          className="turn-name"
-          shown={labelFor(state.turn)}
-          reserve={players.map((_, id) => labelFor(id))}
-        />
-        <span className="turn-divider" />
-        <Stable
-          className="turn-target"
-          shown={<Target zone={state.zone} levels={levels} color={current.color} />}
-          reserve={[[], ...widestZones].map((zone) => (
-            <Target zone={zone} levels={levels} color={current.color} />
-          ))}
-        />
-      </div>
-      {players.length > 2 && <RoundOrder state={state} />}
+    <div className="turn-bar">
+      <span className="turn-badge" style={{ background: current.tint }}>
+        <Mark d={current.d} color={current.color} />
+      </span>
+      <Stable
+        className="turn-name"
+        shown={labelFor(state.turn)}
+        reserve={players.map((_, id) => labelFor(id))}
+      />
+      <span className="turn-divider" />
+      <Stable
+        className="turn-target"
+        shown={<Target zone={state.zone} levels={levels} color={current.color} />}
+        reserve={[[], ...widestZones].map((zone) => (
+          <Target zone={zone} levels={levels} color={current.color} />
+        ))}
+      />
     </div>
   );
 }

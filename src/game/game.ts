@@ -22,45 +22,6 @@ export const LINES = [
   [2, 4, 6],
 ] as const;
 
-const ORDERS: Record<2 | 3 | 4, readonly (readonly PlayerId[])[]> = {
-  2: [[0, 1]],
-  3: [
-    [0, 1, 2],
-    [0, 2, 1],
-  ],
-  4: [
-    [0, 1, 2, 3],
-    [0, 2, 3, 1],
-    [0, 3, 1, 2],
-    [0, 1, 3, 2],
-    [0, 2, 1, 3],
-    [0, 3, 2, 1],
-  ],
-};
-
-function orderAt(config: Config, move: number): { round: number; order: readonly PlayerId[] } {
-  const n = config.players.length;
-  const orders = ORDERS[n as 2 | 3 | 4];
-  const round = Math.floor(move / n);
-  return { round: round + 1, order: orders[round % orders.length]! };
-}
-
-export function playerAt(config: Config, move: number): PlayerId {
-  return orderAt(config, move).order[move % config.players.length] ?? 0;
-}
-
-function countMarks(node: Node): number {
-  if (node.kind === 'cell') return node.mark === null ? 0 : 1;
-  return node.children.reduce((sum, child) => sum + countMarks(child), 0);
-}
-
-/** The round the current turn belongs to (the last move's round once the game is over). */
-export function roundOf(state: GameState): { round: number; order: readonly PlayerId[] } {
-  const marks = countMarks(state.root);
-  const over = state.status.kind !== 'playing';
-  return orderAt(state.config, over ? Math.max(marks - 1, 0) : marks);
-}
-
 function build(level: number, depth: number): Node {
   if (level === depth) return { kind: 'cell', mark: null };
   return {
@@ -191,7 +152,7 @@ export function play(state: GameState, path: Path): GameState {
     root,
     lastMove: path,
     status,
-    turn: playing ? playerAt(state.config, countMarks(root)) : state.turn,
+    turn: playing ? (((state.turn + 1) % state.config.players.length) as PlayerId) : state.turn,
     zone: playing ? resolveZone(root, path) : [],
   };
 }

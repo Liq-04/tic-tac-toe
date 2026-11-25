@@ -1,4 +1,4 @@
-import { DEPTH, LINES, playerAt } from '../game/game';
+import { DEPTH, LINES } from '../game/game';
 import type { Config, GameState, Mode, Node, Path } from '../game/types';
 import type { Rng } from './rng';
 
@@ -9,7 +9,7 @@ const MAX_PLAYERS = 4;
 const CLOSED = MAX_PLAYERS;
 const STRIDE = CLOSED + 1;
 
-const PLY = 0;
+const TURN = 0;
 const ZONE = 1;
 const OVER = 2;
 const WINNER = 3;
@@ -70,7 +70,6 @@ export class FastBoard {
   readonly config: Config;
   readonly players: number;
   readonly cells: number;
-  private readonly cycle: Uint8Array;
   readonly s: Uint16Array;
   private readonly tail: number;
   private readonly scratchLeaf = new Uint8Array(81);
@@ -82,8 +81,6 @@ export class FastBoard {
     this.g = GEOMETRY[config.mode];
     this.players = config.players.length;
     this.cells = this.g.cells;
-    this.cycle = new Uint8Array(24);
-    for (let i = 0; i < 24; i++) this.cycle[i] = playerAt(config, i);
     this.tail = this.g.boards * STRIDE;
     this.s = new Uint16Array(this.tail + WINNER + 1);
   }
@@ -91,20 +88,18 @@ export class FastBoard {
   static fromGame(state: GameState): FastBoard {
     const fb = new FastBoard(state.config);
     const s = fb.s;
-    let marks = 0;
     const walk = (node: Node, b: number) => {
       if (node.kind !== 'board') return;
       node.children.forEach((child, i) => {
         const claimant = child.kind === 'cell' ? child.mark : child.owner;
         const closed = child.kind === 'cell' ? child.mark !== null : child.closed;
-        if (child.kind === 'cell' && child.mark !== null) marks++;
         if (claimant !== null) s[b * STRIDE + claimant]! |= 1 << i;
         if (closed) s[b * STRIDE + CLOSED]! |= 1 << i;
         walk(child, 9 * b + 1 + i);
       });
     };
     walk(state.root, 0);
-    s[fb.tail + PLY] = marks;
+    s[fb.tail + TURN] = state.turn;
     let zone = 0;
     for (const d of state.zone) zone = 9 * zone + 1 + d;
     s[fb.tail + ZONE] = zone;
@@ -127,10 +122,6 @@ export class FastBoard {
     return true;
   }
 
-  get ply(): number {
-    return this.s[this.tail + PLY]!;
-  }
-
   get zone(): number {
     return this.s[this.tail + ZONE]!;
   }
@@ -144,15 +135,14 @@ export class FastBoard {
   }
 
   get toMove(): number {
-    return this.cycle[this.s[this.tail + PLY]! % 24]!;
+    return this.s[this.tail + TURN]!;
   }
 
   play(move: Move): void {
     const s = this.s;
     const g = this.g;
     const tail = this.tail;
-    const ply = s[tail + PLY]!;
-    const p = this.cycle[ply % 24]!;
+    const p = s[tail + TURN]!;
     let b = g.leafOf[move]!;
     let bit = 1 << (move % 9);
     let over = false;
@@ -176,11 +166,11 @@ export class FastBoard {
       b = g.parent[b]!;
       claim = won;
     }
-    s[tail + PLY] = ply + 1;
     if (over) {
       s[tail + ZONE] = 0;
       return;
     }
+    s[tail + TURN] = (p + 1) % this.players;
     s[tail + ZONE] = this.resolveZone(move);
   }
 

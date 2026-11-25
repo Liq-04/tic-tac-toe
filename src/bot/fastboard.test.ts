@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEPTH, isLegal, nodeAt, play, scores, type GameState, type Mode, type Path } from '../game';
 import { FastBoard, type Move } from './fastboard';
 import { Rng } from './rng';
-import { moveOf, oneCellFromAllTied, pathOf, put, start, turnAfter, winBoard, winLargeBoard, type Count } from './testkit';
+import { moveOf, oneCellFromAllTied, pathOf, put, start, winBoard, winLargeBoard, type Count } from './testkit';
 
 function pop(mask: number): number {
   let n = 0;
@@ -38,7 +38,7 @@ const scoreBuf = new Float32Array(4);
 
 function expectAgree(real: GameState, fast: FastBoard, scan: boolean): void {
   const n = real.config.players.length;
-  expect(fast.sameAs(FastBoard.fromGame(real)), 'masks, ply, zone and result match a snapshot of the engine').toBe(true);
+  expect(fast.sameAs(FastBoard.fromGame(real)), 'masks, turn, zone and result match a snapshot of the engine').toBe(true);
   expect(fast.over).toBe(real.status.kind !== 'playing');
   fast.scores(scoreBuf);
   expect(Array.from(scoreBuf.subarray(0, n)), 'scores').toEqual(scores(real));
@@ -172,8 +172,8 @@ function playSteeredGame(mode: Mode, count: Count, seed: number, cov: Coverage):
   let real = start(mode, count);
   const fast = FastBoard.fromGame(real);
   const scratch = fast.blank();
-  while (real.status.kind === 'playing') {
-    const scan = mode === 'ultimate' || seed <= 10 || fast.ply % 7 === 0;
+  for (let ply = 0; real.status.kind === 'playing'; ply++) {
+    const scan = mode === 'ultimate' || seed <= 10 || ply % 7 === 0;
     real = step(real, fast, fast.toPath(pickMove(fast, scratch, rng)), scan, cov);
   }
   expect(fast.over).toBe(true);
@@ -244,13 +244,12 @@ describe('hand-built positions', () => {
   });
 
   it.each([3, 4] as const)('a top-level line ends a %i-player game with the turn unchanged and no zone', (count) => {
-    const winner = turnAfter('ultimate', count, 8);
+    const winner = 2;
     let real = winBoard(winBoard(start('ultimate', count), [0], winner), [1], winner);
     real = put(put(real, winner, [2, 0]), winner, [2, 1]);
-    real = { ...real, zone: [] };
+    real = { ...real, turn: winner, zone: [] };
     const fast = FastBoard.fromGame(real);
     expectAgree(real, fast, true);
-    expect(real.turn).toBe(winner);
 
     real = step(real, fast, [2, 2], true);
     expect(real.status).toEqual({ kind: 'won', winners: [winner] });
@@ -264,15 +263,13 @@ describe('hand-built positions', () => {
   });
 
   it('one Omega move can win a small board, a large board and the game', () => {
-    const marks = 9 + 9 + 6 + 2;
-    const winner = turnAfter('omega', 2, marks);
+    const winner = 0;
     let real = winLargeBoard(winLargeBoard(start('omega', 2), 0, winner), 1, winner);
     real = winBoard(winBoard(real, [2, 0], winner), [2, 1], winner);
     real = put(put(real, winner, [2, 2, 0]), winner, [2, 2, 1]);
-    real = { ...real, zone: [] };
+    real = { ...real, turn: winner, zone: [] };
     const fast = FastBoard.fromGame(real);
     expectAgree(real, fast, true);
-    expect(real.turn).toBe(winner);
 
     const before = tally(fast);
     real = step(real, fast, [2, 2, 2], true);
