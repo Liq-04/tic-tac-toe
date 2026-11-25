@@ -55,6 +55,10 @@ export function nodeAt(root: Node, prefix: Path): Node {
   return node;
 }
 
+export function samePath(a: Path, b: Path): boolean {
+  return a.length === b.length && a.every((digit, i) => digit === b[i]);
+}
+
 function isClosed(node: Node): boolean {
   return node.kind === 'cell' ? node.mark !== null : node.closed;
 }

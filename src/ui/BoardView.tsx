@@ -4,15 +4,14 @@ import {
   isInZone,
   isLegal,
   nodeAt,
+  samePath,
   type BoardNode,
   type GameState,
   type Path,
   type PlayerId,
 } from '../game';
-import type { Verdict } from '../bot';
 import { Mark } from './Mark';
 import { SHAPES, placeName, styleOf } from './players';
-import { VERDICTS } from './verdicts';
 
 /** What the hovered move would do: the cell it fills, and who moves next and where (null if it ends the game). */
 export interface MovePreview {
@@ -20,12 +19,24 @@ export interface MovePreview {
   next: { turn: PlayerId; zone: Path } | null;
 }
 
-/** A judged move to point out on the board, along with the move that would have been better. */
-export interface MoveNote {
-  path: Path;
-  seat: PlayerId;
-  verdict: Verdict;
+/** Points out a cell in a replay. */
+export interface CellNote {
+  className: string;
+  /** Read out after the cell's name. */
+  label: string;
+  badge: string | null;
+  /** A player who could have moved here, drawn faintly. */
+  ghost: PlayerId | null;
 }
+
+/** Notes by `noteKey`. */
+export type CellNotes = ReadonlyMap<string, CellNote>;
+
+export function noteKey(path: Path): string {
+  return path.join('');
+}
+
+const NO_NOTES: CellNotes = new Map();
 
 interface Props {
   state: GameState;
@@ -33,13 +44,9 @@ interface Props {
   /** False while it is not this viewer's turn (online play), so no cell is clickable. */
   canPlay: boolean;
   preview: MovePreview | null;
-  note?: MoveNote | null;
+  notes?: CellNotes;
   onHover: (path: Path | null) => void;
   onPlay: (path: Path) => void;
-}
-
-function samePath(a: Path | null, b: Path): boolean {
-  return a !== null && a.length === b.length && a.every((d, i) => d === b[i]);
 }
 
 function cellLabel(state: GameState, path: Path): string {
@@ -49,7 +56,7 @@ function cellLabel(state: GameState, path: Path): string {
   return `${placeName(state.config.mode, path)}, ${who}`;
 }
 
-export function BoardView({ state, prefix, canPlay, preview, note = null, onHover, onPlay }: Props) {
+export function BoardView({ state, prefix, canPlay, preview, notes = NO_NOTES, onHover, onPlay }: Props) {
   const { mode, players } = state.config;
   const depth = DEPTH[mode];
   const level = prefix.length;
@@ -90,7 +97,7 @@ export function BoardView({ state, prefix, canPlay, preview, note = null, onHove
               prefix={path}
               canPlay={canPlay}
               preview={preview}
-              note={note}
+              notes={notes}
               onHover={onHover}
               onPlay={onPlay}
             />
@@ -98,17 +105,16 @@ export function BoardView({ state, prefix, canPlay, preview, note = null, onHove
         }
         const legal = canPlay && isLegal(state, path);
         const mark = child.mark === null ? null : styleOf(child.mark);
-        const ghost = samePath(preview?.path ?? null, path);
-        const noted = note !== null && samePath(note.path, path) ? VERDICTS[note.verdict.kind] : null;
-        const better = note && 'better' in note.verdict && samePath(note.verdict.better.path, path) ? note : null;
-        const betterStyle = better && styleOf(better.seat);
-        const marker = noted ? ` noted ${noted.className}` : better ? ' better' : '';
+        const ghost = preview !== null && samePath(preview.path, path);
+        const last = state.lastMove !== null && samePath(state.lastMove, path);
+        const note = notes.get(noteKey(path));
+        const couldBe = note && note.ghost !== null ? styleOf(note.ghost) : null;
         return (
           <button
             key={i}
             type="button"
-            className={`cell${samePath(state.lastMove, path) ? ' last' : ''}${marker}`}
-            aria-label={cellLabel(state, path) + (noted ? `, ${noted.label}` : better ? ', better move' : '')}
+            className={`cell${last ? ' last' : ''}${note ? ` noted ${note.className}` : ''}`}
+            aria-label={cellLabel(state, path) + (note ? `, ${note.label}` : '')}
             disabled={!legal}
             onClick={() => onPlay(path)}
             onPointerEnter={() => onHover(path)}
@@ -122,12 +128,10 @@ export function BoardView({ state, prefix, canPlay, preview, note = null, onHove
                 <Mark d={current.d} color={current.color} size="74%" strokeWidth={3.2} />
               </span>
             )}
-            {betterStyle && (
-              <Mark d={betterStyle.d} color={betterStyle.color} size="66%" strokeWidth={2.6} style={{ opacity: 0.55 }} />
-            )}
-            {noted && (
+            {couldBe && <Mark d={couldBe.d} color={couldBe.color} size="66%" strokeWidth={2.6} style={{ opacity: 0.55 }} />}
+            {note?.badge && (
               <span className="cell-badge" aria-hidden="true">
-                {noted.glyph}
+                {note.badge}
               </span>
             )}
           </button>

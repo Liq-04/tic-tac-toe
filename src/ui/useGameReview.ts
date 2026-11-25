@@ -8,17 +8,20 @@ export type Review =
   /** `plies` fills up in move order until it covers the start and every one of `moves`. */
   | { kind: 'plies'; plies: readonly PlyReview[]; moves: number };
 
-/** Reviews the game in `state` once it is over. Until then it is empty. */
-export function useGameReview({ config, history, status }: GameState): Review {
+/**
+ * The finished game in `state` as JSON, or null while it is being played or has no record of its moves.
+ * Online, every room update re-parses the game, so this identifies it by content.
+ */
+export function useFinishedGame({ config, history, status }: GameState): string | null {
   const over = status.kind !== 'playing';
-  // Online, every room update re-parses the game, so the review restarts on content and not on identity.
-  const key = useMemo(
-    () =>
-      over && history
-        ? JSON.stringify({ config: { mode: config.mode, players: config.players }, history })
-        : null,
+  return useMemo(
+    () => (over && history ? JSON.stringify({ config: { mode: config.mode, players: config.players }, history }) : null),
     [over, config, history],
   );
+}
+
+/** Reviews the game in `key`, from `useFinishedGame`. Until there is one it is empty. */
+export function useGameReview(key: string | null, history: GameState['history']): Review {
   const [plies, setPlies] = useState<readonly PlyReview[]>([]);
   const [failed, setFailed] = useState(false);
 

@@ -8,7 +8,7 @@ import { MODE_LABEL } from './players';
 import { Replay } from './Replay';
 import { RulesModal } from './RulesModal';
 import { TurnBar } from './TurnBar';
-import { useGameReview } from './useGameReview';
+import { useFinishedGame, useGameReview } from './useGameReview';
 
 /** Present only for online games. A local game omits it and behaves as pass-and-play. */
 export interface OnlineGame {
@@ -48,12 +48,13 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
   useEffect(() => {
     if (!over) setAfterGame('result');
   }, [over]);
-  const review = useGameReview(state);
-  const { config, history } = state;
-  const states = useMemo(
-    () => (over && history ? replayStates(config, history) : null),
-    [over, config, history],
-  );
+  const finished = useFinishedGame(state);
+  const review = useGameReview(finished, state.history);
+  const states = useMemo(() => {
+    if (finished === null) return null;
+    const { config, history } = JSON.parse(finished);
+    return replayStates(config, history);
+  }, [finished]);
   const watchReplay = states && (() => setAfterGame('replay'));
   const zoomedLarge = zoomPref && mode === 'omega' && !over ? state.zone[0] : undefined;
   const zoomed = zoomedLarge !== undefined;
@@ -88,7 +89,13 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
       </header>
 
       {over && states && afterGame === 'replay' ? (
-        <Replay states={states} review={review} shortcuts={!showRules} onClose={() => setAfterGame('result')} />
+        <Replay
+          key={finished}
+          states={states}
+          review={review}
+          shortcuts={!showRules}
+          onClose={() => setAfterGame('result')}
+        />
       ) : (
         <main className="game-main">
           {online?.banner && (

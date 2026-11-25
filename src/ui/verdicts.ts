@@ -9,6 +9,11 @@ export interface VerdictStyle {
 
 export const VERDICTS: Record<Verdict['kind'], VerdictStyle> = {
   blunder: { label: 'Blunder', glyph: '??', className: 'verdict-blunder' },
-  missed: { label: 'Missed chance', glyph: '?', className: 'verdict-missed' },
-  great: { label: 'Great move', glyph: '!!', className: 'verdict-great' },
+  missed: { label: 'Miss', glyph: '?', className: 'verdict-missed' },
+  great: { label: 'Great', glyph: '!!', className: 'verdict-great' },
 };
+
+/** In the order the key moves list counts them. */
+export const VERDICT_KINDS = ['great', 'missed', 'blunder'] as const satisfies readonly Verdict['kind'][];
+
+export const BEST_MOVE: VerdictStyle = { label: 'Best move', glyph: '★', className: 'verdict-best' };

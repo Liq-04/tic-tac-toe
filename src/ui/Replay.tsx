@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PlyReview } from '../bot';
-import type { GameState, Path } from '../game';
-import { BoardView, type MoveNote } from './BoardView';
+import type { MoveReview } from '../bot';
+import { samePath, type GameState, type Path, type PlayerId } from '../game';
+import { BoardView, noteKey, type CellNote, type CellNotes } from './BoardView';
 import { ChancesChart, drawChance, percent, type Chances } from './ChancesChart';
+import { KeyMoves, type KeyMove } from './KeyMoves';
 import { Mark } from './Mark';
-import { placeName, styleOf } from './players';
-import { VERDICTS } from './verdicts';
+import { styleOf } from './players';
+import { useRoute, type Route, type RouteStart } from './useRoute';
+import { BEST_MOVE, VERDICTS, type VerdictStyle } from './verdicts';
 import type { Review } from './useGameReview';
 import { reviewNote } from './WinChances';
 
 const MOVE_MS = 900;
-/** Longer, to read why the move stands out and look at the better one. */
+/** Longer, to look at the better move. */
 const NOTED_MS = 3200;
 const SPEEDS = [1, 2, 4] as const;
 const ROOT: Path = [];
@@ -67,102 +69,118 @@ function ChanceBars({ state, now, before }: { state: GameState; now: Chances | u
   );
 }
 
-function nameOf(state: GameState, seat: number): string {
-  return state.config.players[seat]?.name ?? '';
-}
-
-interface MoveCardProps {
+/** A move of the game, or a step along the best line that could have been played instead of it. */
+interface Position {
   ply: number;
-  from: GameState | undefined;
-  to: GameState;
-  before: PlyReview | undefined;
-  after: PlyReview | undefined;
-  reviewed: boolean;
-  quiet: boolean;
+  /** 0 is the position before the line's first move. Null while the game itself is on the board. */
+  step: number | null;
 }
 
-function explain(from: GameState, before: PlyReview, after: PlyReview): string | null {
-  const { verdict } = after;
-  if (!verdict) return null;
-  const was = percent(before.chances[from.turn] ?? 0);
-  const is = percent(after.chances[from.turn] ?? 0);
-  const name = nameOf(from, from.turn);
-  switch (verdict.kind) {
-    case 'blunder':
-      return `${name}'s chance of winning fell from ${was} to ${is}.`;
-    case 'missed':
-      return `${name}'s chance of winning is ${is}, and it could have been far higher.`;
-    case 'great':
-      return `${name}'s chance of winning ${was === is ? `stayed at ${is}` : `went from ${was} to ${is}`}. The next best move was worth ${percent(verdict.next.chance)}.`;
-    default: {
-      const _exhaustive: never = verdict;
-      return _exhaustive;
-    }
-  }
+function styleOfMove({ verdict }: MoveReview, isBest: boolean): VerdictStyle | null {
+  return verdict ? VERDICTS[verdict.kind] : isBest ? BEST_MOVE : null;
 }
 
-function MoveCard({ ply, from, to, before, after, reviewed, quiet }: MoveCardProps) {
-  if (!from || !to.lastMove) {
-    return (
-      <div className="move-card">
-        <p className="move-title">Start of the game</p>
-        <p>Press play to watch, or pick a move below.</p>
-      </div>
-    );
+function gameNotes(move: MoveReview, played: Path, seat: PlayerId): CellNotes {
+  const isBest = samePath(move.best.path, played);
+  const style = styleOfMove(move, isBest);
+  const notes = new Map<string, CellNote>();
+  if (style) {
+    notes.set(noteKey(played), { className: style.className, label: style.label, badge: style.glyph, ghost: null });
   }
-  const { mode } = to.config;
+  if (!isBest) {
+    notes.set(noteKey(move.best.path), { className: 'better', label: 'best move', badge: null, ghost: seat });
+  }
+  return notes;
+}
+
+function routeNotes(route: Route, step: number): CellNotes {
+  return new Map(
+    route.steps
+      .slice(0, step)
+      .map(({ path }, i) => [
+        noteKey(path),
+        { className: 'in-route', label: `move ${i + 1} of the line`, badge: String(i + 1), ghost: null },
+      ]),
+  );
+}
+
+interface MoveStripProps {
+  ply: number;
+  from: GameState;
+  played: Path;
+  move: MoveReview;
+  after: Chances;
+  /** Null when there is no line to show. */
+  onShowRoute: (() => void) | null;
+}
+
+/** What was played against what was best, on one line. */
+function MoveStrip({ ply, from, played, move, after, onShowRoute }: MoveStripProps) {
   const mover = styleOf(from.turn);
-  const verdict = after?.verdict ?? null;
-  const style = verdict && VERDICTS[verdict.kind];
-  const why = before && after ? explain(from, before, after) : null;
+  const isBest = samePath(move.best.path, played);
+  const style = styleOfMove(move, isBest);
   return (
-    <div className={`move-card ${style?.className ?? ''}`} aria-live={quiet ? 'off' : 'polite'}>
-      <p className="move-title">
+    <div className="move-strip">
+      <span className="strip-move">
         <Mark d={mover.d} color={mover.color} size={18} />
-        <span>
-          Move {ply}: {nameOf(from, from.turn)}
+        Move {ply}
+      </span>
+      {style && (
+        <span className={`verdict-pill ${style.className}`}>
+          {style.glyph} {style.label}
         </span>
-        {style && (
-          <span className="verdict-pill">
-            {style.glyph} {style.label}
+      )}
+      <span className="strip-chances">
+        <span>
+          Played <strong>{percent(after[from.turn] ?? 0)}</strong>
+        </span>
+        {!isBest && (
+          <span className="strip-best">
+            Best <strong>{percent(move.best.chance)}</strong>
           </span>
         )}
-      </p>
-      <p>Played {placeName(mode, to.lastMove)}.</p>
-      {why && <p>{why}</p>}
-      {verdict && 'better' in verdict && (
-        <p className="better-line">
-          <strong>Better:</strong> {placeName(mode, verdict.better.path)}, for {percent(verdict.better.chance)}. It is
-          outlined in green on the board.
-        </p>
+      </span>
+      {onShowRoute && (
+        <button type="button" className="btn" onClick={onShowRoute}>
+          Show best line
+        </button>
       )}
-      {!after && reviewed && <p>Working out the chances…</p>}
     </div>
   );
 }
 
 export function Replay({ states, review, shortcuts, onClose }: Props) {
   const last = states.length - 1;
-  const [ply, setPly] = useState(0);
+  const [{ ply, step }, setPosition] = useState<Position>({ ply: 0, step: null });
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(1);
 
   const plies = review.kind === 'plies' ? review.plies : [];
-  const state = states[ply] ?? states[0];
   const from = states[ply - 1];
-  const after = plies[ply];
-  const before = plies[ply - 1];
-  const verdict = after?.verdict ?? null;
-  const path = state?.lastMove;
-  const note = useMemo<MoveNote | null>(
-    () => (verdict && path && from ? { path, seat: from.turn, verdict } : null),
-    [verdict, path, from],
+  const played = states[ply]?.lastMove;
+  const move = plies[ply]?.move ?? null;
+
+  const routeStart = useMemo<RouteStart | null>(
+    () => (step !== null && from && move ? { state: from, first: move.best.path } : null),
+    [step !== null, from, move],
   );
+  const route = useRoute(routeStart);
+  // The game, or the line while one is open. A step not worked out yet shows as soon as it is.
+  const at = route ? Math.min(step ?? 0, route.states.length - 1) : ply;
+  const end = route ? route.last : last;
+  const state = route ? route.states[at] : states[ply];
+  const now = route && at > 0 ? route.steps[at - 1]?.chances : plies[route ? ply - 1 : ply]?.chances;
+  const before = route ? (at > 1 ? route.steps[at - 2]?.chances : plies[ply - 1]?.chances) : plies[ply - 1]?.chances;
+
+  const notes = useMemo<CellNotes | undefined>(() => {
+    if (route) return routeNotes(route, at);
+    return move && played && from ? gameNotes(move, played, from.turn) : undefined;
+  }, [route, at, move, played, from]);
   const keyMoves = useMemo(
     () =>
-      plies.flatMap((p) => {
+      plies.flatMap((p): KeyMove[] => {
         const seat = states[p.ply - 1]?.turn;
-        return p.verdict && seat !== undefined ? [{ step: p.ply, seat, kind: p.verdict.kind, verdict: p.verdict }] : [];
+        return p.move?.verdict && seat !== undefined ? [{ step: p.ply, seat, ...p.move.verdict }] : [];
       }),
     [plies, states],
   );
@@ -170,22 +188,37 @@ export function Replay({ states, review, shortcuts, onClose }: Props) {
   const playButton = useRef<HTMLButtonElement>(null);
   useEffect(() => playButton.current?.focus({ preventScroll: true }), []);
 
-  const running = playing && ply < last;
-  const ready = review.kind !== 'plies' || after !== undefined;
-  const wait = (verdict ? NOTED_MS : MOVE_MS) / speed;
+  const running = playing && at < end;
+  const ready = route ? at < route.states.length - 1 : review.kind !== 'plies' || plies[ply] !== undefined;
+  const wait = (!route && move?.verdict ? NOTED_MS : MOVE_MS) / speed;
+  const inRoute = route !== null;
   useEffect(() => {
     if (!running || !ready) return;
-    const timer = setTimeout(() => setPly(ply + 1), wait);
+    const timer = setTimeout(() => setPosition(inRoute ? { ply, step: at + 1 } : { ply: at + 1, step: null }), wait);
     return () => clearTimeout(timer);
-  }, [running, ready, ply, wait]);
+  }, [running, ready, inRoute, ply, at, wait]);
 
+  const moveTo = (to: number) => setPosition(inRoute ? { ply, step: to } : { ply: to, step: null });
   const goTo = (to: number) => {
     setPlaying(false);
-    setPly(Math.max(0, Math.min(last, to)));
+    moveTo(Math.max(0, Math.min(end, to)));
+  };
+  const goToMove = (to: number) => {
+    setPlaying(false);
+    setPosition({ ply: to, step: null });
+  };
+  const openRoute = () => {
+    setPosition({ ply, step: 0 });
+    setPlaying(true);
+    playButton.current?.focus({ preventScroll: true });
+  };
+  const closeRoute = () => {
+    goToMove(ply);
+    playButton.current?.focus({ preventScroll: true });
   };
   const togglePlay = () => {
-    if (ply >= last) {
-      setPly(0);
+    if (at >= end) {
+      moveTo(0);
       setPlaying(true);
     } else setPlaying(!playing);
   };
@@ -195,9 +228,9 @@ export function Replay({ states, review, shortcuts, onClose }: Props) {
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey) return;
       const on = (selector: string) => e.target instanceof Element && e.target.closest(selector) !== null;
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowLeft' && !on('input')) goTo(ply - 1);
-      else if (e.key === 'ArrowRight' && !on('input')) goTo(ply + 1);
+      if (e.key === 'Escape') (inRoute ? closeRoute : onClose)();
+      else if (e.key === 'ArrowLeft' && !on('input')) goTo(at - 1);
+      else if (e.key === 'ArrowRight' && !on('input')) goTo(at + 1);
       else if (e.key === ' ' && !on('button')) togglePlay();
       else return;
       e.preventDefault();
@@ -208,48 +241,75 @@ export function Replay({ states, review, shortcuts, onClose }: Props) {
 
   if (!state) return null;
   const { mode, players } = state.config;
+  const gameLabel = (at: number) => (at === 0 ? 'Start of the game' : `Move ${at} of ${last}`);
+  const routeLabel = (at: number) => (at === 0 ? `Before move ${ply}` : `Best line, ${at} of ${end}`);
   const steps = plies.map((p) => p.chances);
-  const stepLabel = (step: number) => (step === 0 ? 'Start of the game' : `Move ${step} of ${last}`);
+  const label = (inRoute ? routeLabel : gameLabel)(at);
 
   return (
     <main className="replay">
       <div className="replay-board">
-        <div className={`frame mode-${mode}`}>
+        <div className={`frame mode-${mode}${inRoute ? ' frame-route' : ''}`}>
           <BoardView
             state={state}
             prefix={ROOT}
             canPlay={false}
             preview={null}
-            note={note}
+            notes={notes}
             onHover={ignore}
             onPlay={ignore}
           />
         </div>
+        {route ? (
+          <div className="move-strip strip-route" role="status">
+            <span className="strip-move">Best line from move {ply}</span>
+            <span className="strip-chances">
+              {route.failed ? 'Could not be worked out' : ready || at >= end ? `${at} of ${end}` : 'Thinking…'}
+            </span>
+            <button type="button" className="btn primary" onClick={closeRoute}>
+              Back to the game
+            </button>
+          </div>
+        ) : from && played && move ? (
+          <MoveStrip
+            ply={ply}
+            from={from}
+            played={played}
+            move={move}
+            after={plies[ply]?.chances ?? []}
+            onShowRoute={ply === last && samePath(move.best.path, played) ? null : openRoute}
+          />
+        ) : (
+          <div className="move-strip">
+            <span className="strip-move">{gameLabel(ply)}</span>
+            {ply > 0 && review.kind === 'plies' && <span className="strip-chances">Finding the best move…</span>}
+          </div>
+        )}
         <input
           type="range"
           className="replay-scrub"
-          aria-label="Move"
-          aria-valuetext={stepLabel(ply)}
+          aria-label={inRoute ? 'Move of the best line' : 'Move'}
+          aria-valuetext={label}
           min={0}
-          max={last}
-          value={ply}
+          max={end}
+          value={at}
           onChange={(e) => goTo(Number(e.target.value))}
         />
         <div className="replay-controls">
           <div className="replay-transport">
-            <button type="button" className="btn replay-jump" aria-label="Go to the start" aria-disabled={ply === 0} onClick={() => goTo(0)}>
+            <button type="button" className="btn replay-jump" aria-label="Go to the start" aria-disabled={at === 0} onClick={() => goTo(0)}>
               ⏮
             </button>
-            <button type="button" className="btn" aria-label="Previous move" aria-disabled={ply === 0} onClick={() => goTo(ply - 1)}>
+            <button type="button" className="btn" aria-label="Previous move" aria-disabled={at === 0} onClick={() => goTo(at - 1)}>
               ◀
             </button>
             <button type="button" ref={playButton} className="btn primary replay-play" onClick={togglePlay}>
-              {running ? 'Pause' : ply >= last ? 'Play again' : 'Play'}
+              {running ? 'Pause' : at >= end ? 'Play again' : 'Play'}
             </button>
-            <button type="button" className="btn" aria-label="Next move" aria-disabled={ply >= last} onClick={() => goTo(ply + 1)}>
+            <button type="button" className="btn" aria-label="Next move" aria-disabled={at >= end} onClick={() => goTo(at + 1)}>
               ▶
             </button>
-            <button type="button" className="btn replay-jump" aria-label="Go to the end" aria-disabled={ply >= last} onClick={() => goTo(last)}>
+            <button type="button" className="btn replay-jump" aria-label="Go to the end" aria-disabled={at >= end} onClick={() => goTo(end)}>
               ⏭
             </button>
           </div>
@@ -271,65 +331,31 @@ export function Replay({ states, review, shortcuts, onClose }: Props) {
           </button>
         </div>
         <section className="chances" aria-label="Win chances">
-          <p className="chances-round">{stepLabel(ply)}</p>
-          <ChanceBars state={state} now={after?.chances} before={before?.chances} />
+          <p className="chances-round">{label}</p>
+          <ChanceBars state={state} now={now} before={before} />
           {review.kind === 'plies' && (
             <ChancesChart
               players={players}
               steps={steps}
               last={last}
               at={ply}
-              onPick={goTo}
+              onPick={goToMove}
               stepName="Move"
-              stepLabel={stepLabel}
+              stepLabel={gameLabel}
               endLabel={`${last} moves`}
               markers={keyMoves}
             />
           )}
         </section>
-        <MoveCard
-          ply={ply}
-          from={from}
-          to={state}
-          before={before}
-          after={after}
-          reviewed={review.kind === 'plies'}
-          quiet={running}
-        />
         <section className="key-moves" aria-labelledby="key-moves-title">
           <h3 id="key-moves-title">Key moves</h3>
-          {keyMoves.length > 0 ? (
-            <ol>
-              {keyMoves.map(({ step, seat, kind, verdict }) => {
-                const s = styleOf(seat);
-                const chance = (at: number) => chanceText(plies[at]?.chances[seat]);
-                return (
-                  <li key={step}>
-                    <button
-                      type="button"
-                      className={VERDICTS[kind].className}
-                      aria-current={step === ply ? 'step' : undefined}
-                      onClick={() => goTo(step)}
-                    >
-                      <span className="key-glyph">{VERDICTS[kind].glyph}</span>
-                      <span className="key-move">{step}</span>
-                      <Mark d={s.d} color={s.color} size={16} />
-                      <span className="chance-name">{nameOf(state, seat)}</span>
-                      <span className="key-label">{VERDICTS[kind].label}</span>
-                      <span className="key-chance">
-                        {'better' in verdict
-                          ? `${chance(step)}, best ${percent(verdict.better.chance)}`
-                          : `${chance(step)}, next ${percent(verdict.next.chance)}`}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          ) : (
-            review.kind === 'plies' &&
-            plies.length > last && <p className="hint">No blunders, missed chances or great moves in this game.</p>
-          )}
+          <KeyMoves
+            players={players}
+            moves={keyMoves}
+            at={ply}
+            complete={review.kind === 'plies' && plies.length > last}
+            onPick={goToMove}
+          />
           <p className="hint">{reviewNote(review)}</p>
         </section>
       </aside>

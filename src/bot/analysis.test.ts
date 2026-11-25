@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLegal, play, type GameState, type Mode, type Path } from '../game';
+import { isLegal, play, replayStates, samePath, type GameState, type Mode, type Path } from '../game';
 import { judge, reviewGame } from './analysis';
 import { FastBoard } from './fastboard';
 import { Rng } from './rng';
@@ -90,10 +90,10 @@ describe('reviewGame', () => {
     const state = gameWith(2, blundersNext, blundersNext);
     const thrownAway = givesAway(state);
     expect(thrownAway).toBeDefined();
-    const last = analyse(play(state, thrownAway ?? [])).at(-1);
-    expect(last?.verdict).toMatchObject({ kind: 'blunder', better: { chance: 1 } });
-    const better = last?.verdict?.kind === 'blunder' ? last.verdict.better.path : [];
-    expect(wins(state, better)).toBe(true);
+    const move = analyse(play(state, thrownAway ?? [])).at(-1)?.move;
+    expect(move).toMatchObject({ verdict: { kind: 'blunder' }, best: { chance: 1 } });
+    expect(move?.verdict?.margin).toBeLessThan(-0.5);
+    expect(wins(state, move?.best.path ?? [])).toBe(true);
   });
 
   it('calls the only move that punishes a blunder great', () => {
@@ -101,16 +101,17 @@ describe('reviewGame', () => {
       '21 16 66 62 26 65 51 17 75 53 35 54 48 87 76 61 11 15 52 23 31 13 37 77 74 47 73 38 82 25 50 06 68 86 60 08 80 04 44 43 33 30 07 88 10 00 32 22 27 24 40 12 63 34';
     const history = recorded.split(' ').map((move): Path => [Number(move[0]), Number(move[1])]);
     const [blunder, reply] = [...reviewGame(start('ultimate', 2).config, history, 3000)].slice(-2);
-    expect(blunder?.verdict?.kind).toBe('blunder');
+    expect(blunder?.move?.verdict?.kind).toBe('blunder');
     expect(blunder?.chances[0]).toBeLessThan(0.1);
-    expect(reply?.verdict?.kind).toBe('great');
+    expect(reply?.move?.verdict?.kind).toBe('great');
     expect(reply?.chances[1]).toBeGreaterThan(0.9);
-    expect(reply?.verdict?.kind === 'great' && reply.verdict.next.chance).toBeLessThan(0.1);
+    expect(reply?.move?.verdict?.margin).toBeGreaterThan(0.8);
+    expect(reply?.move?.best).toEqual({ path: [3, 4], chance: reply?.chances[1] });
   });
 
   it('does not call the move that ends the game great', () => {
     const state = finishedWith(2, (s) => s.status.kind === 'won');
-    expect(analyse(state).at(-1)?.verdict).toBeNull();
+    expect(analyse(state).at(-1)?.move?.verdict).toBeNull();
   });
 
   it('has no verdict on a move that was the only legal one', () => {
@@ -119,7 +120,28 @@ describe('reviewGame', () => {
     const state = gameWith(2, onlyOne, onlyOne);
     const fast = FastBoard.fromGame(state);
     const forced = play(state, fast.toPath(fast.randomMove(new Rng(1))));
-    expect(analyse(forced).at(-1)?.verdict).toBeNull();
+    const move = analyse(forced).at(-1)?.move;
+    expect(move?.verdict).toBeNull();
+    expect(move?.best.path).toEqual(forced.lastMove);
+  });
+
+  it.each([2, 4] as const)('%i players: gives the best move for every turn, never worse than the one played', (count) => {
+    const state = randomGame('ultimate', count, 11);
+    const states = replayStates(state.config, state.history ?? []) ?? [];
+    const [first, ...moves] = analyse(state);
+    expect(first?.move).toBeNull();
+    expect(moves).toHaveLength((state.history ?? []).length);
+    let improved = 0;
+    for (const { ply, chances, move } of moves) {
+      const from = states[ply - 1];
+      if (!from || !move) throw new Error('missing review');
+      expect(isLegal(from, move.best.path)).toBe(true);
+      const played = samePath(move.best.path, state.history?.[ply - 1] ?? []);
+      if (played) expect(move.best.chance).toBe(chances[from.turn]);
+      else expect(move.best.chance).toBeGreaterThan(chances[from.turn] ?? 1);
+      if (!played) improved++;
+    }
+    expect(improved).toBeGreaterThan(0);
   });
 
   it('gives the same answer every time', () => {
@@ -139,26 +161,24 @@ describe('reviewGame', () => {
 });
 
 describe('judge', () => {
-  const other = (chance: number) => ({ path: [4, 4], chance });
-
   it('calls a big drop a blunder only when another move was far better', () => {
-    expect(judge(0.6, 0.4, other(0.62))).toEqual({ kind: 'blunder', better: other(0.62) });
-    expect(judge(0.6, 0.4, other(0.44))).toBeNull();
+    expect(judge(0.6, 0.4, 0.62)).toEqual({ kind: 'blunder', margin: expect.closeTo(-0.22) });
+    expect(judge(0.6, 0.4, 0.44)).toBeNull();
   });
 
   it('calls a flat or rising move a missed chance when another move was far better', () => {
-    expect(judge(0.6, 0.6, other(0.8))).toEqual({ kind: 'missed', better: other(0.8) });
-    expect(judge(0.4, 0.6, other(0.9))).toEqual({ kind: 'missed', better: other(0.9) });
+    expect(judge(0.6, 0.6, 0.8)).toEqual({ kind: 'missed', margin: expect.closeTo(-0.2) });
+    expect(judge(0.4, 0.6, 0.9)).toEqual({ kind: 'missed', margin: expect.closeTo(-0.3) });
   });
 
   it('calls a move great only when it was far better than the next best and cost nothing', () => {
-    expect(judge(0.4, 0.6, other(0.3))).toEqual({ kind: 'great', next: other(0.3) });
-    expect(judge(0.4, 0.6, other(0.55))).toBeNull();
-    expect(judge(0.6, 0.4, other(0.2))).toBeNull();
+    expect(judge(0.4, 0.6, 0.3)).toEqual({ kind: 'great', margin: expect.closeTo(0.3) });
+    expect(judge(0.4, 0.6, 0.55)).toBeNull();
+    expect(judge(0.6, 0.4, 0.2)).toBeNull();
   });
 
   it('has nothing to say about small gaps', () => {
-    expect(judge(0.5, 0.46, other(0.53))).toBeNull();
-    expect(judge(0.5, 0.54, other(0.5))).toBeNull();
+    expect(judge(0.5, 0.46, 0.53)).toBeNull();
+    expect(judge(0.5, 0.54, 0.5)).toBeNull();
   });
 });
