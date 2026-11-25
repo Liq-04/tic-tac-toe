@@ -1030,6 +1030,367 @@ p {
   text-align: left;
 }
 
+.replay-btn {
+  width: 100%;
+  height: 50px;
+  flex-shrink: 0;
+}
+
+.over-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.replay {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 380px);
+  justify-content: center;
+  align-items: start;
+  gap: 28px;
+  padding: 24px 24px 32px;
+}
+
+.replay-board {
+  --board-max: min(640px, calc(100vh - 230px));
+  width: max(320px, var(--board-max));
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.replay-board:has(.mode-omega) {
+  --board-max: min(740px, calc(100vh - 230px));
+}
+
+.replay-board .frame {
+  width: 100%;
+}
+
+.replay-scrub {
+  width: 100%;
+  margin: 0;
+  height: 24px;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.replay-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.replay-transport {
+  display: flex;
+  gap: 6px;
+}
+
+.replay-transport .btn {
+  padding: 0 14px;
+}
+
+.replay-transport .replay-play {
+  min-width: 104px;
+}
+
+.replay-side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.replay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.replay-head h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+}
+
+.chance-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chance-bars li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto 48px;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 15px;
+}
+
+.chance-bars strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.chance-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.chance-change {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chance-change.up {
+  color: #15803d;
+}
+
+.chance-change.down {
+  color: #b91c1c;
+}
+
+.chance-track {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.chance-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 350ms ease-out;
+}
+
+.verdict-blunder {
+  --verdict: #b91c1c;
+  --verdict-tint: #fef2f2;
+}
+
+.verdict-missed {
+  --verdict: #a16207;
+  --verdict-tint: #fefce8;
+}
+
+.verdict-great {
+  --verdict: #15803d;
+  --verdict-tint: #f0fdf4;
+}
+
+.move-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 148px;
+  padding: 14px 16px;
+  border: 2px solid var(--verdict, var(--line));
+  border-radius: 14px;
+  background: var(--verdict-tint, var(--surface));
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.move-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.verdict-pill {
+  margin-left: auto;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--verdict);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.better-line {
+  color: #166534;
+}
+
+.key-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.key-moves h3 {
+  font-size: 16px;
+}
+
+.key-moves ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.key-moves li button {
+  width: 100%;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 30px 28px 16px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.key-moves li button[aria-current] {
+  border-color: var(--verdict);
+  background: var(--verdict-tint);
+}
+
+.key-glyph,
+.key-label {
+  color: var(--verdict);
+  font-weight: 700;
+}
+
+.key-move {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.key-chance {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.chances-marker {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px;
+  border: 2px solid var(--surface);
+  border-radius: 3px;
+  background: var(--verdict);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+/* Above the overlay of a board this move closed. */
+.cell.noted,
+.cell.better {
+  z-index: 1;
+}
+
+.cell.noted {
+  background: var(--verdict-tint);
+  box-shadow: inset 0 0 0 3px var(--verdict);
+}
+
+.mode-omega .cell.noted {
+  box-shadow: 0 0 0 2px var(--verdict);
+}
+
+.cell.better {
+  background: #f0fdf4;
+  outline: 2px dashed #15803d;
+  outline-offset: -2px;
+}
+
+.cell-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--verdict);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.mode-omega .cell-badge {
+  top: -13px;
+  right: -13px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 2px;
+  font-size: 9px;
+  line-height: 14px;
+}
+
+@media (max-width: 960px) {
+  .replay {
+    grid-template-columns: minmax(0, 640px);
+    gap: 14px;
+    padding: 12px 16px 28px;
+  }
+
+  .replay-side,
+  .replay .chances {
+    display: contents;
+  }
+
+  .replay .chances-chart {
+    order: 1;
+  }
+
+  .key-moves {
+    order: 2;
+  }
+
+  .replay-head {
+    order: -1;
+  }
+
+  .replay-board {
+    --board-max: min(640px, 100%);
+    width: 100%;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .replay-jump {
+    display: none;
+  }
+
+  .key-moves .chance-name {
+    font-size: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chance-track span {
+    transition: none;
+  }
+}
+
 .modal-actions {
   width: 100%;
   display: grid;
@@ -1199,7 +1560,8 @@ p {
   }
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled='true'] {
   opacity: 0.45;
   cursor: not-allowed;
 }

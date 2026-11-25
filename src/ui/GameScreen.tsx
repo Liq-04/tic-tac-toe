@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
-import { isBotTurn, isLegal, play, type GameState, type Path, type PlayerId } from '../game';
+import { useEffect, useMemo, useState } from 'react';
+import { isBotTurn, isLegal, play, replayStates, type GameState, type Path, type PlayerId } from '../game';
 import { BoardView, type MovePreview } from './BoardView';
 import { GameOver } from './GameOver';
 import { Mark } from './Mark';
 import { PlayerCards } from './PlayerCards';
 import { MODE_LABEL } from './players';
+import { Replay } from './Replay';
 import { RulesModal } from './RulesModal';
 import { TurnBar } from './TurnBar';
+import { useGameReview } from './useGameReview';
 
 /** Present only for online games. A local game omits it and behaves as pass-and-play. */
 export interface OnlineGame {
@@ -38,14 +40,21 @@ function previewOf(state: GameState, path: Path | null): MovePreview | null {
 export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Props) {
   const { mode, players } = state.config;
   const [showRules, setShowRules] = useState(false);
-  const [resultHidden, setResultHidden] = useState(false);
+  const [afterGame, setAfterGame] = useState<'result' | 'board' | 'replay'>('result');
   const [zoomPref, setZoomPref] = useState(false);
   const [hover, setHover] = useState<Path | null>(null);
 
   const over = state.status.kind !== 'playing';
   useEffect(() => {
-    if (!over) setResultHidden(false);
+    if (!over) setAfterGame('result');
   }, [over]);
+  const review = useGameReview(state);
+  const { config, history } = state;
+  const states = useMemo(
+    () => (over && history ? replayStates(config, history) : null),
+    [over, config, history],
+  );
+  const watchReplay = states && (() => setAfterGame('replay'));
   const zoomedLarge = zoomPref && mode === 'omega' && !over ? state.zone[0] : undefined;
   const zoomed = zoomedLarge !== undefined;
   const canPlay =
@@ -78,60 +87,72 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
         </div>
       </header>
 
-      <main className="game-main">
-        {online?.banner && (
-          <div className="banner" role="status">
-            {online.banner}
-          </div>
-        )}
-        <div className="bar-row">
-          {over ? (
-            <button type="button" className="btn" onClick={() => setResultHidden(false)}>
-              Game over · Show results
-            </button>
-          ) : (
-            <TurnBar state={state} you={online?.you} />
-          )}
-          {mode === 'omega' && (
-            <div className="segmented small" role="group" aria-label="Board view">
-              <button type="button" aria-pressed={!zoomPref} onClick={() => setZoomPref(false)}>
-                Overview
-              </button>
-              <button
-                type="button"
-                aria-pressed={zoomPref}
-                title="Shows the large board you must play in, when there is exactly one"
-                onClick={() => setZoomPref(true)}
-              >
-                Zoom to move
-              </button>
+      {over && states && afterGame === 'replay' ? (
+        <Replay states={states} review={review} shortcuts={!showRules} onClose={() => setAfterGame('result')} />
+      ) : (
+        <main className="game-main">
+          {online?.banner && (
+            <div className="banner" role="status">
+              {online.banner}
             </div>
           )}
-        </div>
+          <div className="bar-row">
+            {over ? (
+              <div className="over-actions">
+                <button type="button" className="btn" onClick={() => setAfterGame('result')}>
+                  Game over · Show results
+                </button>
+                {watchReplay && (
+                  <button type="button" className="btn" onClick={watchReplay}>
+                    ▶ Watch replay
+                  </button>
+                )}
+              </div>
+            ) : (
+              <TurnBar state={state} you={online?.you} />
+            )}
+            {mode === 'omega' && (
+              <div className="segmented small" role="group" aria-label="Board view">
+                <button type="button" aria-pressed={!zoomPref} onClick={() => setZoomPref(false)}>
+                  Overview
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={zoomPref}
+                  title="Shows the large board you must play in, when there is exactly one"
+                  onClick={() => setZoomPref(true)}
+                >
+                  Zoom to move
+                </button>
+              </div>
+            )}
+          </div>
 
-        <div className={`frame mode-${mode}${zoomed ? ' zoomed' : ''}`}>
-          <BoardView
-            key={zoomed ? 'zoom' : 'overview'}
-            state={state}
-            prefix={zoomed ? [zoomedLarge] : []}
-            canPlay={canPlay}
-            preview={preview}
-            onHover={setHover}
-            onPlay={onPlay}
-          />
-        </div>
+          <div className={`frame mode-${mode}${zoomed ? ' zoomed' : ''}`}>
+            <BoardView
+              key={zoomed ? 'zoom' : 'overview'}
+              state={state}
+              prefix={zoomed ? [zoomedLarge] : []}
+              canPlay={canPlay}
+              preview={preview}
+              onHover={setHover}
+              onPlay={onPlay}
+            />
+          </div>
 
-        <PlayerCards state={state} online={online} />
-      </main>
+          <PlayerCards state={state} online={online} />
+        </main>
+      )}
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-      {over && (
+      {over && afterGame === 'result' && (
         <GameOver
           state={state}
-          hidden={resultHidden}
+          review={review}
           onAgain={online && !online.isHost ? null : onPlayAgain}
           onSetup={onNewGame}
-          onViewBoard={() => setResultHidden(true)}
+          onViewBoard={() => setAfterGame('board')}
+          onReplay={watchReplay}
         />
       )}
     </div>
