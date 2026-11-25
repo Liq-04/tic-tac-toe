@@ -37,5 +37,7 @@ export interface GameState {
   /** Prefix the current player must play inside; [] means anywhere. */
   zone: Path;
   lastMove: Path | null;
+  /** Every move so far, or null in a game saved before moves were recorded. */
+  history: readonly Path[] | null;
   status: Status;
 }

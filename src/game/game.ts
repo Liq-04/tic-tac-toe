@@ -39,6 +39,7 @@ export function newGame(config: Config): GameState {
     turn: 0,
     zone: [],
     lastMove: null,
+    history: [],
     status: { kind: 'playing' },
   };
 }
@@ -151,6 +152,7 @@ export function play(state: GameState, path: Path): GameState {
     config: state.config,
     root,
     lastMove: path,
+    history: state.history && [...state.history, path],
     status,
     turn: playing ? (((state.turn + 1) % state.config.players.length) as PlayerId) : state.turn,
     zone: playing ? resolveZone(root, path) : [],

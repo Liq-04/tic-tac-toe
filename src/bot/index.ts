@@ -1,5 +1,9 @@
 import { isBotTurn, isLegal, type GameState, type Path } from '../game';
+import type { RoundChances } from './analysis';
+import type { AnalysisRequest } from './analysisWorker';
 import type { ThinkReply, ThinkRequest } from './worker';
+
+export type { RoundChances };
 
 const THINK_MS = 1000;
 const MIN_TURN_MS = 400;
@@ -27,5 +31,27 @@ export function botTurn(state: GameState, onMove: (path: Path) => void): () => v
     worker.onmessage = null;
     worker.terminate();
     clearTimeout(timer);
+  };
+}
+
+/**
+ * Works out each player's chance of winning after every round of `game` in a worker, calling `onRound` in
+ * round order as results arrive. After the returned function runs, neither callback is called.
+ */
+export function analyseGame(
+  game: AnalysisRequest,
+  callbacks: { onRound: (result: RoundChances) => void; onError: () => void },
+): () => void {
+  const worker = new Worker(new URL('./analysisWorker.ts', import.meta.url), { type: 'module' });
+  worker.onmessage = ({ data }: MessageEvent<RoundChances>) => callbacks.onRound(data);
+  worker.onerror = (e) => {
+    console.error('analysis worker failed', e);
+    callbacks.onError();
+  };
+  worker.postMessage(game);
+  return () => {
+    worker.onmessage = null;
+    worker.onerror = null;
+    worker.terminate();
   };
 }

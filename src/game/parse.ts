@@ -1,9 +1,18 @@
 import { DEPTH, nodeAt } from './game';
-import type { GameState, PlayerInfo } from './types';
+import type { GameState, Mode, Path, PlayerInfo } from './types';
+
+function parseHistory(value: unknown, mode: Mode): readonly Path[] | null {
+  const isPath = (path: unknown): path is Path =>
+    Array.isArray(path) &&
+    path.length === DEPTH[mode] &&
+    path.every((d) => Number.isInteger(d) && d >= 0 && d <= 8);
+  return Array.isArray(value) && value.every(isPath) ? value : null;
+}
 
 /**
  * Shape-checks untrusted JSON (storage, network); returns null when it is not a usable game.
  * The result is a copy whose players carry `bot: true` only on seats above 0 that had exactly `true`.
+ * A missing or malformed move history becomes null.
  */
 export function parseGame(value: unknown): GameState | null {
   const s = value as Partial<GameState> | null;
@@ -23,5 +32,5 @@ export function parseGame(value: unknown): GameState | null {
     const { bot, ...rest } = p;
     return bot === true && i > 0 ? { ...rest, bot } : rest;
   });
-  return { ...(s as GameState), config: { ...s.config, players: seats } };
+  return { ...(s as GameState), config: { ...s.config, players: seats }, history: parseHistory(s.history, mode) };
 }

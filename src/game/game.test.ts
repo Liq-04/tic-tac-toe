@@ -312,3 +312,20 @@ describe('turn order', () => {
     expect(play(saved, firstLegal(saved)).turn).toBe(0);
   });
 });
+
+describe('history', () => {
+  it('records legal moves in order and ignores illegal ones', () => {
+    const s = playAll(start('ultimate', 3), [
+      [4, 4],
+      [4, 0],
+    ]);
+    expect(play(s, [4, 4]).history).toEqual([
+      [4, 4],
+      [4, 0],
+    ]);
+  });
+
+  it('stays unknown for a game saved without one', () => {
+    expect(play({ ...start('ultimate', 2), history: null }, [0, 0]).history).toBeNull();
+  });
+});

@@ -74,6 +74,7 @@ export class FastBoard {
   private readonly tail: number;
   private readonly scratchLeaf = new Uint8Array(81);
   private readonly scratchCount = new Uint8Array(81);
+  private readonly scratchTotals = new Float32Array(MAX_PLAYERS);
   private nLeaves = 0;
 
   constructor(config: Config) {
@@ -287,12 +288,12 @@ export class FastBoard {
     }
   }
 
-  reward(out: Float32Array): void {
+  /** Each seat's share of the win in a finished game: 1 for a sole winner, split on a tie, all 0 for a draw. */
+  winShares(out: Float32Array): void {
     const n = this.players;
-    if (n === 2) {
-      const winner = this.winner;
-      out[0] = winner === NO_WINNER ? 0.5 : winner === 0 ? 1 : 0;
-      out[1] = 1 - out[0]!;
+    const winner = this.winner;
+    if (n === 2 || winner !== NO_WINNER) {
+      for (let p = 0; p < n; p++) out[p] = p === winner ? 1 : 0;
       return;
     }
     this.scores(out);
@@ -304,11 +305,20 @@ export class FastBoard {
         ties = 1;
       } else if (out[p] === best) ties++;
     }
+    for (let p = 0; p < n; p++) out[p] = best > 0 && out[p] === best ? 1 / ties : 0;
+  }
+
+  reward(out: Float32Array): void {
+    const n = this.players;
+    this.winShares(out);
+    let drawn = true;
+    for (let p = 0; p < n; p++) if (out[p]! > 0) drawn = false;
+    if (drawn) for (let p = 0; p < n; p++) out[p] = 1 / n;
+    if (n === 2) return;
+    const totals = this.scratchTotals;
+    this.scores(totals);
     const leaves = this.g.leaves;
-    for (let p = 0; p < n; p++) {
-      const share = best === 0 ? 1 / n : out[p] === best ? 1 / ties : 0;
-      out[p] = WIN_SHARE * share + (LEAF_SHARE * out[p]!) / leaves;
-    }
+    for (let p = 0; p < n; p++) out[p] = WIN_SHARE * out[p]! + (LEAF_SHARE * totals[p]!) / leaves;
   }
 
   toPath(move: Move): Path {
