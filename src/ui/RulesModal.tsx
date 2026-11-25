@@ -38,8 +38,7 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
           row on the top board ends the game at once. Ties share the win.
         </p>
         <p>
-          Turn order changes every round on a fixed cycle. Everyone moves once per round, and the
-          first player always starts a round.
+          Players take turns in seat order, and the order never changes.
         </p>
       </div>
       <button type="button" className="btn primary" onClick={onClose}>

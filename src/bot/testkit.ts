@@ -35,15 +35,6 @@ export function winLargeBoard(state: GameState, large: number, player: PlayerId)
   return [0, 1, 2].reduce((s, small) => winBoard(s, [large, small], player), state);
 }
 
-export function turnAfter(mode: Mode, count: Count, marks: number): PlayerId {
-  let s = start(mode, count);
-  for (let i = 0; i < marks; i++) {
-    const head = mode === 'ultimate' ? [i % 9] : [Math.floor(i / 9), i % 9];
-    s = put(s, 0, [...head, 0]);
-  }
-  return s.turn;
-}
-
 export const TIE_PATTERN: PlayerId[] = [0, 0, 1, 1, 1, 0, 0, 1, 0];
 
 export function oneCellFromAllTied(count: Count): GameState {

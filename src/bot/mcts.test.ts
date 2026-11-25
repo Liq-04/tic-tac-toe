@@ -3,7 +3,7 @@ import { isLegal, play, type GameState, type Mode, type PlayerId } from '../game
 import { FastBoard } from './fastboard';
 import { chooseMove, search, type Budget } from './mcts';
 import { Rng } from './rng';
-import { oneCellFromAllTied, put, start, TIE_PATTERN, turnAfter, winBoard, type Count } from './testkit';
+import { oneCellFromAllTied, put, start, TIE_PATTERN, winBoard, type Count } from './testkit';
 
 const CONFIGS = ([2, 3, 4] as const).flatMap((count) => (['ultimate', 'omega'] as const).map((mode) => [mode, count] as const));
 
@@ -135,14 +135,11 @@ describe('terminal rewards', () => {
 describe('tactics', () => {
   function oneMoveFromWin(count: Count, seat: PlayerId): GameState {
     const real = [0, 1].reduce((s, board) => winBoard(s, [board], seat), start('ultimate', count));
-    return { ...put(put(real, seat, [2, 0]), seat, [2, 1]), zone: [] };
+    return { ...put(put(real, seat, [2, 0]), seat, [2, 1]), turn: seat, zone: [] };
   }
 
-  it.each([2, 3] as const)('takes a top-level line that is one move away, with %i players', (count) => {
-    const seat = turnAfter('ultimate', count, 8);
-    expect(seat).toBe(count === 2 ? 0 : 2);
+  it.each([[2, 0], [3, 2]] as const)('takes a top-level line that is one move away, with %i players', (count, seat) => {
     const state = oneMoveFromWin(count, seat);
-    expect(state.turn).toBe(seat);
     expect(chooseMove(state, { seed: 4, budget: iterations(20_000) }).path).toEqual([2, 2]);
   });
 });
