@@ -2,9 +2,13 @@ import { scores, type GameState } from '../game';
 import { Mark } from './Mark';
 import { Modal } from './Modal';
 import { styleOf } from './players';
+import { useRoundChances } from './useRoundChances';
+import { WinChances } from './WinChances';
 
 interface Props {
   state: GameState;
+  /** Keeps the win chances while the player looks at the board. */
+  hidden: boolean;
   /** null when this viewer cannot restart (an online guest). */
   onAgain: (() => void) | null;
   onSetup: () => void;
@@ -32,8 +36,10 @@ function subtitle(state: GameState, points: number[]): string {
   return `${sorted[0]} boards to ${sorted[1]}.`;
 }
 
-export function GameOver({ state, onAgain, onSetup, onViewBoard }: Props) {
+export function GameOver({ state, hidden, onAgain, onSetup, onViewBoard }: Props) {
   const { players } = state.config;
+  const analysis = useRoundChances(state);
+  if (hidden) return null;
   // A top-board win claims every board, so 2-player standings count boards actually won instead.
   const points =
     players.length === 2
@@ -79,6 +85,7 @@ export function GameOver({ state, onAgain, onSetup, onViewBoard }: Props) {
           );
         })}
       </ol>
+      <WinChances players={players} analysis={analysis} />
       <div className="modal-actions">
         {onAgain ? (
           <button type="button" className="btn primary" onClick={onAgain}>

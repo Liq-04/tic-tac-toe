@@ -125,9 +125,10 @@ export function GameScreen({ state, online, onPlay, onNewGame, onPlayAgain }: Pr
       </main>
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-      {over && !resultHidden && (
+      {over && (
         <GameOver
           state={state}
+          hidden={resultHidden}
           onAgain={online && !online.isHost ? null : onPlayAgain}
           onSetup={onNewGame}
           onViewBoard={() => setResultHidden(true)}

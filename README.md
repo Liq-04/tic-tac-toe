@@ -17,6 +17,10 @@ Tic-tac-toe inside tic-tac-toe, for 2 to 4 players, on one device (pass-and-play
 
 On the setup screen, set any seat after player 1 to **Bot** to play against the computer, in either mode and for 2 to 4 players. Player 1 is always human. A bot is a Monte Carlo tree search that thinks for about a second per move in a Web Worker, so the page stays responsive. Bots work offline only: **Play online** is disabled while a seat is a bot.
 
+## Win chances
+
+When a game ends, the result screen shows each player's chance of winning at the start and after every round. The bot's search plays out the rest of the game from each of those positions, 10,000 times in Ultimate and 1,000 in Omega, and the chance is the average share of the win. A shared win counts as a fraction, and whatever is left over is the chance of a draw. The numbers assume every player plays like the bot. Games that started before moves were recorded have no chart.
+
 ## Online play
 
 Press **Play online** on the setup screen to host a room. You get a five-character code and an invite link (`#/g/<code>`). Friends open the link, take a seat in the lobby, and the host starts the game.

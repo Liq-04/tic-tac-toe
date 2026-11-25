@@ -12,6 +12,15 @@ describe('parseGame', () => {
     expect(parseGame(JSON.parse(JSON.stringify(game)))).toEqual(game);
   });
 
+  it('replaces a missing or malformed move history with null', () => {
+    const game = play(newGame({ mode: 'ultimate', players: [{ name: 'A' }, { name: 'B' }] }), [4, 4]);
+    const { history: _, ...old } = game;
+    expect(parseGame(old)).toEqual({ ...game, history: null });
+    for (const history of ['x', [4, 4], [[4]], [[4, 9]], [[4, '4']]]) {
+      expect(parseGame({ ...game, history })?.history).toBeNull();
+    }
+  });
+
   it('keeps bot: true on seats above 0', () => {
     const parsed = parseGame(withPlayers([{ name: 'A' }, { name: 'B', bot: true }]));
     expect(parsed?.config.players).toEqual([{ name: 'A' }, { name: 'B', bot: true }]);

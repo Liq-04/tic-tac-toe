@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newGame, play, type GameState } from '../game';
-import { botTurn } from './index';
+import { analyseGame, botTurn } from './index';
 
 describe('import boundary', () => {
   it('UI code reaches the bot only through its index', () => {
@@ -101,5 +101,35 @@ describe('botTurn', () => {
     expect(() => reply([5, 5])).toThrow('illegal');
     vi.advanceTimersByTime(5000);
     expect(onMove).not.toHaveBeenCalled();
+  });
+});
+
+describe('analyseGame', () => {
+  beforeEach(() => {
+    FakeWorker.made = [];
+    vi.stubGlobal('Worker', FakeWorker);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('passes each result on, and nothing after cancel', () => {
+    const onRound = vi.fn();
+    const onError = vi.fn();
+    const { config } = botToMove();
+    const cancel = analyseGame({ config, history: [[4, 4]] }, { onRound, onError });
+    const worker = FakeWorker.made[0];
+    expect(worker?.posted).toEqual([{ config, history: [[4, 4]] }]);
+
+    const first = { round: 0, chances: [0.5, 0.4] };
+    worker?.onmessage?.({ data: first });
+    expect(onRound).toHaveBeenCalledExactlyOnceWith(first);
+
+    cancel();
+    expect(worker?.terminated).toBe(true);
+    worker?.onmessage?.({ data: { round: 1, chances: [1, 0] } });
+    expect(onRound).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,8 @@ const CLOCK_EVERY = 256;
 export interface SearchResult {
   move: Move;
   iterations: number;
+  /** Each seat's average share of the win over the search's simulated games. Adds up to 1 minus the chance of a draw. */
+  chances: readonly number[];
 }
 
 export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX_NODES): SearchResult {
@@ -19,7 +21,6 @@ export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX
   const scratch = root.blank();
   scratch.copyFrom(root);
   const rootMoves = scratch.legalMoves(moves);
-  if (rootMoves === 1) return { move: moves[0]!, iterations: 0 };
 
   const wanted = budget.kind === 'iterations' ? 1 + budget.n * cells : maxNodes;
   const cap = Math.max(1 + rootMoves, Math.min(maxNodes, wanted));
@@ -34,6 +35,8 @@ export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX
   const pathNode = new Uint32Array(cells + 1);
   const pathMover = new Uint8Array(cells + 1);
   const reward = new Float32Array(4);
+  const shares = new Float32Array(4);
+  const shareSums = Array.from({ length: root.players }, () => 0);
 
   const expandShuffled = (node: number): boolean => {
     const n = scratch.legalMoves(moves);
@@ -90,6 +93,8 @@ export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX
     }
     scratch.playout(rng);
     scratch.reward(reward);
+    scratch.winShares(shares);
+    for (let p = 0; p < shareSums.length; p++) shareSums[p]! += shares[p]!;
     visits[0]!++;
     for (let i = 0; i < depth; i++) {
       const n = pathNode[i]!;
@@ -103,7 +108,7 @@ export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX
   for (let c = best; c < end; c++) {
     if (visits[c]! > visits[best]! || (visits[c] === visits[best] && wins[c]! > wins[best]!)) best = c;
   }
-  return { move: move[best]!, iterations };
+  return { move: move[best]!, iterations, chances: shareSums.map((sum) => sum / iterations) };
 }
 
 export function chooseMove(
@@ -112,6 +117,8 @@ export function chooseMove(
 ): { path: Path; iterations: number } {
   if (state.status.kind !== 'playing') throw new Error('game is over');
   const board = FastBoard.fromGame(state);
+  const moves = new Uint16Array(board.cells);
+  if (board.legalMoves(moves) === 1) return { path: board.toPath(moves[0]!), iterations: 0 };
   const { move, iterations } = search(board, new Rng(opts.seed), opts.budget);
   return { path: board.toPath(move), iterations };
 }
