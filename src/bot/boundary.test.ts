@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { newGame, play, type GameState } from '../game';
-import { analyseGame, botTurn } from './index';
+import { analyseGame, botTurn, findRoute } from './index';
 
 describe('import boundary', () => {
   it('UI code reaches the bot only through its index', () => {
@@ -122,14 +122,44 @@ describe('analyseGame', () => {
     const worker = FakeWorker.made[0];
     expect(worker?.posted).toEqual([{ config, history: [[4, 4]] }]);
 
-    const first = { ply: 0, chances: [0.5, 0.4], verdict: null };
+    const first = { ply: 0, chances: [0.5, 0.4], move: null };
     worker?.onmessage?.({ data: first });
     expect(onPly).toHaveBeenCalledExactlyOnceWith(first);
 
     cancel();
     expect(worker?.terminated).toBe(true);
-    worker?.onmessage?.({ data: { ply: 1, chances: [1, 0], verdict: null } });
+    worker?.onmessage?.({ data: { ply: 1, chances: [1, 0], move: null } });
     expect(onPly).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+});
+
+describe('findRoute', () => {
+  beforeEach(() => {
+    FakeWorker.made = [];
+    vi.stubGlobal('Worker', FakeWorker);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('passes each step on, and nothing after cancel', () => {
+    const onStep = vi.fn();
+    const onError = vi.fn();
+    const state = botToMove();
+    const cancel = findRoute({ state, first: [4, 0] }, { onStep, onError });
+    const worker = FakeWorker.made[0];
+    expect(worker?.posted).toEqual([{ state, first: [4, 0] }]);
+
+    const step = { path: [4, 0], chances: [0.5, 0.4] };
+    worker?.onmessage?.({ data: step });
+    expect(onStep).toHaveBeenCalledExactlyOnceWith(step);
+
+    cancel();
+    expect(worker?.terminated).toBe(true);
+    worker?.onmessage?.({ data: step });
+    expect(onStep).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
   });
 });

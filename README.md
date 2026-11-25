@@ -23,13 +23,17 @@ When a game ends, the result screen shows each player's chance of winning at the
 
 ## Replay
 
-Press **Watch replay** on the result screen to play the game back with each player's chance of winning beside the board. Use the buttons, the slider, the chart, the key moves list, or the arrow keys and Space. The replay marks three kinds of move:
+Press **Watch replay** on the result screen to play the game back with each player's chance of winning beside the board. Use the buttons, the slider, the chart, the key moves list, or the arrow keys and Space.
+
+Every turn shows its best move. If the player found it, the square gets a star, or a !! when the move was great. If not, the best move is outlined in green, and the bar under the board compares the two chances. A move within 2 points of the best (3 in Omega) counts as the best, because the estimate is no finer than that. Press **Show best line** to watch the best move and the five turns most likely to follow it, numbered on the board. The bot picks those turns for every player.
+
+The replay marks three kinds of move. The key moves list counts them for each player, and pressing a count shows only those moves:
 
 - **Blunder (??)**: the player's own chance fell, and another move would have left it at least 10 points higher.
-- **Missed chance (?)**: the player's chance stayed about the same, and another move would have left it at least 10 points higher.
-- **Great move (!!)**: the move left the player's chance at least 10 points higher than the next best move would have. The move that ends the game does not count.
+- **Miss (?)**: the player's chance stayed about the same, and another move would have left it at least 10 points higher.
+- **Great (!!)**: the move left the player's chance at least 10 points higher than the next best move would have. The move that ends the game does not count.
 
-For a blunder or a missed chance, the better move is outlined in green on the board. A move that lowers a player's chance is not a blunder when every other move would have lowered it too.
+A move that lowers a player's chance is not a blunder when every other move would have lowered it too.
 
 ## Online play
 

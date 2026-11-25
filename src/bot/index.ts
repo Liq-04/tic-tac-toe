@@ -1,9 +1,12 @@
 import { isBotTurn, isLegal, type GameState, type Path } from '../game';
-import type { PlyReview, Verdict } from './analysis';
+import type { MoveReview, PlyReview, Verdict } from './analysis';
 import type { AnalysisRequest } from './analysisWorker';
+import type { RouteStep } from './route';
+import type { RouteRequest } from './routeWorker';
 import type { ThinkReply, ThinkRequest } from './worker';
 
-export type { PlyReview, Verdict };
+export { ROUTE_MOVES } from './route';
+export type { MoveReview, PlyReview, RouteStep, Verdict };
 
 const THINK_MS = 1000;
 const MIN_TURN_MS = 400;
@@ -43,12 +46,28 @@ export function analyseGame(
   callbacks: { onPly: (review: PlyReview) => void; onError: () => void },
 ): () => void {
   const worker = new Worker(new URL('./analysisWorker.ts', import.meta.url), { type: 'module' });
-  worker.onmessage = ({ data }: MessageEvent<PlyReview>) => callbacks.onPly(data);
+  return stream(worker, game, callbacks.onPly, callbacks.onError);
+}
+
+/**
+ * Works out the moves likely to follow `first` in `state`, in a worker. Calls `onStep` for `first` and then each
+ * reply, until ROUTE_MOVES or the end of the game. After the returned function runs, neither callback is called.
+ */
+export function findRoute(
+  from: RouteRequest,
+  callbacks: { onStep: (step: RouteStep) => void; onError: () => void },
+): () => void {
+  const worker = new Worker(new URL('./routeWorker.ts', import.meta.url), { type: 'module' });
+  return stream(worker, from, callbacks.onStep, callbacks.onError);
+}
+
+function stream<T>(worker: Worker, request: unknown, onResult: (result: T) => void, onError: () => void): () => void {
+  worker.onmessage = ({ data }: MessageEvent<T>) => onResult(data);
   worker.onerror = (e) => {
     console.error('analysis worker failed', e);
-    callbacks.onError();
+    onError();
   };
-  worker.postMessage(game);
+  worker.postMessage(request);
   return () => {
     worker.onmessage = null;
     worker.onerror = null;
