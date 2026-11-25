@@ -1,5 +1,5 @@
 import type { Config, Path } from '../game';
-import { roundChances } from './analysis';
+import { reviewGame } from './analysis';
 
 export interface AnalysisRequest {
   config: Config;
@@ -7,6 +7,6 @@ export interface AnalysisRequest {
 }
 
 self.onmessage = ({ data }: MessageEvent<AnalysisRequest>) => {
-  for (const result of roundChances(data.config, data.history)) self.postMessage(result);
+  for (const result of reviewGame(data.config, data.history)) self.postMessage(result);
   self.close();
 };

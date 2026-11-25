@@ -5,17 +5,25 @@ import { Rng } from './rng';
 export type Budget = { kind: 'time'; ms: number } | { kind: 'iterations'; n: number };
 
 const MAX_NODES = 1 << 21;
+/** Keeps a bot open-minded. A search for accurate chances wants less, because chances average in every move tried. */
 const EXPLORATION = Math.SQRT2;
 const CLOCK_EVERY = 256;
 
 export interface SearchResult {
   move: Move;
+  /** Every legal move, most promising first. Starts with `move`. */
+  ranked: readonly Move[];
   iterations: number;
   /** Each seat's average share of the win over the search's simulated games. Adds up to 1 minus the chance of a draw. */
   chances: readonly number[];
 }
 
-export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX_NODES): SearchResult {
+export function search(
+  root: FastBoard,
+  rng: Rng,
+  budget: Budget,
+  { maxNodes = MAX_NODES, exploration = EXPLORATION } = {},
+): SearchResult {
   const cells = root.cells;
   const moves = new Uint16Array(cells);
   const scratch = root.blank();
@@ -78,7 +86,7 @@ export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX
         child = first;
         for (let c = first; c < first + count; c++) {
           const v = visits[c]!;
-          const score = wins[c]! / v + EXPLORATION * Math.sqrt(logN / v);
+          const score = wins[c]! / v + exploration * Math.sqrt(logN / v);
           if (score > best) {
             best = score;
             child = c;
@@ -103,12 +111,11 @@ export function search(root: FastBoard, rng: Rng, budget: Budget, maxNodes = MAX
     }
   }
 
-  let best = firstChild[0]!;
-  const end = best + nChildren[0]!;
-  for (let c = best; c < end; c++) {
-    if (visits[c]! > visits[best]! || (visits[c] === visits[best] && wins[c]! > wins[best]!)) best = c;
-  }
-  return { move: move[best]!, iterations, chances: shareSums.map((sum) => sum / iterations) };
+  const first = firstChild[0]!;
+  const children = Array.from({ length: nChildren[0]! }, (_, i) => first + i);
+  children.sort((a, b) => visits[b]! - visits[a]! || wins[b]! - wins[a]!);
+  const ranked = children.map((c) => move[c]!);
+  return { move: ranked[0]!, ranked, iterations, chances: shareSums.map((sum) => sum / iterations) };
 }
 
 export function chooseMove(

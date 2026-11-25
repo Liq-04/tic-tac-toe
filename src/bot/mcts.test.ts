@@ -71,7 +71,7 @@ describe('chooseMove', () => {
     for (const [mode, count] of [['ultimate', 2], ['omega', 3]] as const) {
       const state = start(mode, count);
       const board = FastBoard.fromGame(state);
-      const result = search(board, new Rng(5), iterations(3000), 300);
+      const result = search(board, new Rng(5), iterations(3000), { maxNodes: 300 });
       expect(result.iterations).toBe(3000);
       expect(isLegal(state, board.toPath(result.move))).toBe(true);
     }

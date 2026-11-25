@@ -1,4 +1,4 @@
-import type { Mode, PlayerId } from '../game';
+import type { Mode, Path, PlayerId } from '../game';
 
 export const SHAPES = {
   x: 'M6 6L18 18M18 6L6 18',
@@ -48,5 +48,9 @@ export const LEVEL_NAMES: Record<Mode, readonly string[]> = {
   ultimate: ['small board', 'square'],
   omega: ['large board', 'small board', 'square'],
 };
+
+export function placeName(mode: Mode, path: Path): string {
+  return path.map((d, i) => `${position(d)} ${LEVEL_NAMES[mode][i]}`).join(', ');
+}
 
 export const MODE_LABEL: Record<Mode, string> = { ultimate: 'Ultimate', omega: 'Omega' };

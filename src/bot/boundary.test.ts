@@ -115,21 +115,21 @@ describe('analyseGame', () => {
   });
 
   it('passes each result on, and nothing after cancel', () => {
-    const onRound = vi.fn();
+    const onPly = vi.fn();
     const onError = vi.fn();
     const { config } = botToMove();
-    const cancel = analyseGame({ config, history: [[4, 4]] }, { onRound, onError });
+    const cancel = analyseGame({ config, history: [[4, 4]] }, { onPly, onError });
     const worker = FakeWorker.made[0];
     expect(worker?.posted).toEqual([{ config, history: [[4, 4]] }]);
 
-    const first = { round: 0, chances: [0.5, 0.4] };
+    const first = { ply: 0, chances: [0.5, 0.4], verdict: null };
     worker?.onmessage?.({ data: first });
-    expect(onRound).toHaveBeenCalledExactlyOnceWith(first);
+    expect(onPly).toHaveBeenCalledExactlyOnceWith(first);
 
     cancel();
     expect(worker?.terminated).toBe(true);
-    worker?.onmessage?.({ data: { round: 1, chances: [1, 0] } });
-    expect(onRound).toHaveBeenCalledTimes(1);
+    worker?.onmessage?.({ data: { ply: 1, chances: [1, 0], verdict: null } });
+    expect(onPly).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
   });
 });

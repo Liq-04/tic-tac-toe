@@ -19,7 +19,17 @@ On the setup screen, set any seat after player 1 to **Bot** to play against the 
 
 ## Win chances
 
-When a game ends, the result screen shows each player's chance of winning at the start and after every round. The bot's search plays out the rest of the game from each of those positions, 10,000 times in Ultimate and 1,000 in Omega, and the chance is the average share of the win. A shared win counts as a fraction, and whatever is left over is the chance of a draw. The numbers assume every player plays like the bot. Games that started before moves were recorded have no chart.
+When a game ends, the result screen shows each player's chance of winning at the start and after every round. The bot's search plays out the rest of the game from each of those positions, 25,000 times in Ultimate and 1,000 in Omega, and the chance is the average share of the win. A shared win counts as a fraction, and whatever is left over is the chance of a draw. The numbers assume every player plays like the bot. Games that started before moves were recorded have no chart and no replay. The numbers take about 10 seconds to work out for an Ultimate game and about 30 for a long Omega game, and fill in as they arrive.
+
+## Replay
+
+Press **Watch replay** on the result screen to play the game back with each player's chance of winning beside the board. Use the buttons, the slider, the chart, the key moves list, or the arrow keys and Space. The replay marks three kinds of move:
+
+- **Blunder (??)**: the player's own chance fell, and another move would have left it at least 10 points higher.
+- **Missed chance (?)**: the player's chance stayed about the same, and another move would have left it at least 10 points higher.
+- **Great move (!!)**: the move left the player's chance at least 10 points higher than the next best move would have. The move that ends the game does not count.
+
+For a blunder or a missed chance, the better move is outlined in green on the board. A move that lowers a player's chance is not a blunder when every other move would have lowered it too.
 
 ## Online play
 
